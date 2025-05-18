@@ -22,7 +22,7 @@ def select_controller():
                 return False
             controller_type = int(inp)
             if controller_type >= 1 and controller_type <= len(CONTROLLERS_LIST):
-                controller = CONTROLLERS_LIST[controller_type]
+                controller = CONTROLLERS_LIST[controller_type-1]
                 return controller
             else:
                 print(f"Please enter a number 1-{len(CONTROLLERS_LIST)}:")

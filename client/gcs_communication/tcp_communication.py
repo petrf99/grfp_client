@@ -36,11 +36,17 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+from client.client import stop_event, abort_event
+
 @app.route("/send-message", methods=["POST"])
 def receive_message():
     data = request.get_json()
-    print(f"📩 Message received from GCS: {data}")
     logger.info(f"Message received from GCS: {data}")
+    message = data.get("message", "")
+    if message == 'abort-session':
+        abort_event.set()
+    if message == 'finish-session':
+        stop_event.set()
     return jsonify({"status": "ok"})
 
 @app.route("/shutdown", methods=["POST"])

@@ -7,13 +7,14 @@ logger = init_logger("RCClient_UDPReceiver")
 
 from client.config import UDP_SEND_LOG_DELAY
 
+from client.client import stop_event, abort_event
 def telemetry_receiver(sock: socket.socket):
     print("📡 Starting telemetry receiver...")
     logger.info("Starting udp receiver")
     sock.settimeout(1.0)
     
     last_inp_log_time = 0
-    while True:
+    while not stop_event.is_set() and not abort_event.is_set():
         try:
             data, addr = sock.recvfrom(65536)
             message = data.decode(errors="ignore")
@@ -30,4 +31,6 @@ def telemetry_receiver(sock: socket.socket):
         except Exception as e:
             print(f"⚠️ Telemetry error: {e}")
             logger.error(f"Telemetry error: {e}")
+    
+    logger.info("Stop receiving UDP data due")
 

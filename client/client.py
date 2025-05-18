@@ -9,7 +9,7 @@ from client.config import FREQUENCY, RC_CHANNELS_DEFAULTS
 from client.session_manager.token_auth import get_valid_token
 
 from client.gcs_communication.tailscale_connect import start_tailscale, wait_for_tailscale_ips
-from client.gcs_communication.send_message_to_gcs import send_start_message_to_gcs, run_client_server
+from client.gcs_communication.tcp_communication import send_start_message_to_gcs, run_client_server
 
 from client.gcs_communication.udp_rc_input_sender import send_rc_frame
 from client.gcs_communication.udp_drone_data_receiver import telemetry_receiver
@@ -20,6 +20,9 @@ from client.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame
 
 from client.session_manager.basic_commands import ready, abort, stop, leave
 
+import threading
+stop_event = threading.Event()
+abort_event = threading.Event()
 
 def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str):
 
@@ -43,28 +46,22 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
 
     logger.info(f"RC Session ID: {session_id}\n")
 
-    running = True
-    while running:
+    while not stop_event.is_set and not abort_event.is_set():
         clock.tick(FREQUENCY)
         for event in pygame_event_get():
             if event.type == pygame_QUIT:
-                running = False
+                stop_event.set()
             rc_state = rc_input.process_event(event, rc_state)
 
         rc_state = rc_input.read_frame(rc_state)
 
         send_rc_frame(sock, session_id, rc_state, controller, gcs_ip)
 
-
-    # отправить финальный neutral frame (disarm дрона при выходе)
-    neutral = RC_CHANNELS_DEFAULTS.copy()
-    neutral["ch5"] = 1000
-    neutral["ch6"] = 1000
-    send_rc_frame(sock, session_id, neutral, controller, gcs_ip)
-
     pygame_quit()
+    
+    print("Session complete.")
 
-    return abort(gcs_ip, session_id, sock, good=True)
+    return abort(gcs_ip, session_id, sock, good=stop_event.is_set())
 
 
 def main():
