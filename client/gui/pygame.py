@@ -5,6 +5,8 @@ logger = init_logger("RCClientGUI")
 
 from client.config import *
 
+pygame_QUIT = pygame.QUIT
+
 def pygame_init(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="RC Controller"):
     try:
         pygame.init()
@@ -18,3 +20,9 @@ def pygame_init(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="RC Controller")
     pygame.display.set_caption(title)
     clock = pygame.time.Clock()
     return screen, clock
+
+def pygame_event_get():
+    return pygame.event.get()
+
+def pygame_quit():
+    pygame.quit()

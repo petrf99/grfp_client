@@ -25,7 +25,9 @@ def get_valid_token():
     print("\nWelcome to Genesis Remote Flights Platform ✈️")
     
     while True:
-        token = input("Please enter your Mission Access Token: ").strip()
+        token = input("Please enter your Mission Access Token (or enter 'leave' to exit the program): ").strip()
+        if token == 'leave':
+            return False
         logger.info(f"Token entered: {token}")
 
         try:
