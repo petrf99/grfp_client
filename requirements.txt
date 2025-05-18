@@ -1,0 +1,4 @@
+pygame
+dotenv
+requests
+flask
