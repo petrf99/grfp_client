@@ -18,7 +18,7 @@ from client.inputs import select_controller, get_rc_input
 
 from client.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame_QUIT
 
-from client.session_manager.basic_commands import ready, abort, stop, leave
+from client.session_manager.basic_commands import ready, disconnect, close, leave
 
 import threading
 stop_event = threading.Event()
@@ -61,7 +61,7 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
     
     print("Session complete.")
 
-    return abort(gcs_ip, session_id, sock, good=stop_event.is_set())
+    return disconnect(gcs_ip, session_id, sock, good=stop_event.is_set())
 
 
 def main():
@@ -76,24 +76,24 @@ def main():
     
     ips = wait_for_tailscale_ips(session_id)
     if not ips:
-        return stop()
+        return close()
     else:
         gcs_ip, client_ip = ips[0], ips[1]
 
     if send_start_message_to_gcs(gcs_ip, session_id):
         controller = select_controller()
         if not controller:
-            return abort(gcs_ip, session_id)
+            return disconnect(gcs_ip, session_id)
         
         is_ready = ready()
         if not is_ready:
-            return abort(gcs_ip, session_id)
+            return disconnect(gcs_ip, session_id)
         else:
             run_main_loop(session_id, gcs_ip, client_ip, controller)
     else:
         print("❌ Aborting. Could not reach GCS.")
         logger.error(f"{session_id} Aborting. Could not reach GCS.")
-        return stop()
+        return close()
 
 
 if __name__ == "__main__":

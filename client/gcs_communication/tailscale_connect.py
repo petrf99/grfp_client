@@ -5,9 +5,11 @@ logger = init_logger("RCClient_GCS_Connect")
 
 def start_tailscale(session_id, auth_token: str):
     print("🔧 Starting Tailscale with your mission auth token...")
+    hostname = f"client_{session_id}"
     try:
         subprocess.run([
-            "sudo", "tailscale", "up", f"--authkey={auth_token}"
+            "sudo", "tailscale", "up", f"--authkey={auth_token}",
+            f"--hostname={hostname}"
         ], check=True)
         print("✅ Tailscale started.")
         logger.info(f"{session_id} Tailscale start succeded")

@@ -6,7 +6,7 @@ logger = init_logger("RCClient_SessManager")
 
 from client.config import CLIENT_TCP_PORT, GCS_TCP_PORT
 
-from client.gcs_communication.send_message_to_gcs import shutdown_client_server
+from client.gcs_communication.tcp_communication import shutdown_client_server
 
 def ready():
     print("If you are ready to fly, please type 'ready'.\nOr type 'abort' to terminate the process.")
@@ -19,7 +19,7 @@ def ready():
         else:
             print("Please type 'ready' or 'abort'")
 
-def abort(gcs_ip, session_id, sock = None, good = False):
+def disconnect(gcs_ip, session_id, sock = None, good = False):
     status = 'abort'
     if good:
         status = 'finish'
@@ -43,9 +43,9 @@ def abort(gcs_ip, session_id, sock = None, good = False):
         print(f"Something went wront. Terminating session forcedly...")
         logger.error(f"{session_id} Can't send {status} message to GCS. Exception: {e}. Terminating forcedly.")
     
-    return stop()
+    return close()
     
-def stop():
+def close():
     try:
         print("🔌 Stopping Tailscale VPN...")
         subprocess.run(["sudo", "tailscale", "down"], check=True)
