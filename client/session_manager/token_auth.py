@@ -20,6 +20,10 @@ def mock_post(url, json, timeout):
         return Mock(status_code=403, json=lambda: {"status": "error"})
 
 
+import hashlib
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest().upper()
+
 
 def get_valid_token():
     print("\nWelcome to Genesis Remote Flights Platform ✈️")
@@ -32,7 +36,7 @@ def get_valid_token():
 
         try:
             # with patch("requests.post", new=mock_post):
-            response = requests.post(RFD_URL, json={"token": token}, timeout=5)
+            response = requests.post(RFD_URL, json={"token": hash_token(token)}, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "ok" and "session_id" in data:
