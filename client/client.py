@@ -20,9 +20,7 @@ from client.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame
 
 from client.session_manager.basic_commands import ready, disconnect, close, leave
 
-import threading
-stop_event = threading.Event()
-abort_event = threading.Event()
+from client.session_manager.events import stop_event, abort_event
 
 def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str):
 

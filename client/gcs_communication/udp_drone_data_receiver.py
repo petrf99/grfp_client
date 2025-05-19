@@ -7,7 +7,7 @@ logger = init_logger("RCClient_UDPReceiver")
 
 from client.config import UDP_SEND_LOG_DELAY
 
-from client.client import stop_event, abort_event
+from client.session_manager.events import stop_event, abort_event
 def telemetry_receiver(sock: socket.socket):
     print("📡 Starting telemetry receiver...")
     logger.info("Starting udp receiver")

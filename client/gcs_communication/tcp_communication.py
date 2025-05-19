@@ -36,7 +36,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-from client.client import stop_event, abort_event
+from client.session_manager.events import stop_event, abort_event
 
 @app.route("/send-message", methods=["POST"])
 def receive_message():
