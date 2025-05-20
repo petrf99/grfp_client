@@ -7,14 +7,14 @@ logger = init_logger("RCClient_UDPReceiver")
 
 from client.config import UDP_SEND_LOG_DELAY
 
-from client.session_manager.events import stop_event, abort_event
+from client.session_manager.events import finish_event, abort_event
 def telemetry_receiver(sock: socket.socket):
     print("📡 Starting telemetry receiver...")
     logger.info("Starting udp receiver")
     sock.settimeout(1.0)
     
     last_inp_log_time = 0
-    while not stop_event.is_set() and not abort_event.is_set():
+    while not finish_event.is_set() and not abort_event.is_set():
         try:
             data, addr = sock.recvfrom(65536)
             message = data.decode(errors="ignore")
@@ -25,12 +25,15 @@ def telemetry_receiver(sock: socket.socket):
         except socket.timeout:
             continue
         except OSError:
-            print("🛑 Telemetry socket closed.")
-            logger.error("Telemetry socker closed")
+            print("🛑 Drone data receiver socket closed.")
+            logger.error("Drone data receiver socker closed")
+            break
+        except KeyboardInterrupt:
+            print("🛑 Drone data receiver interrupted by user.")
+            logger.warning("Drone data receiver interrupted by user.")
             break
         except Exception as e:
-            print(f"⚠️ Telemetry error: {e}")
-            logger.error(f"Telemetry error: {e}")
-    
-    logger.info("Stop receiving UDP data due")
+            print(f"⚠️ Drone data receiver error: {e}")
+            logger.error(f"Drone data receiver error: {e}")
+
 

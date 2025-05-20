@@ -1,6 +1,7 @@
 import json
 import time
 import socket
+import ipaddress
 
 from client.config import UDP_SEND_LOG_DELAY, GCS_UDP_PORT, CLIENT_UDP_PORT
 
@@ -14,11 +15,12 @@ def get_socket():
     return sock
 
 
-last_out_log_time = 0
+_last_log_map = {}
 def send_rc_frame(sock, session_id, rc_state, source, gcs_ip):
-    global last_out_log_time
+    global _last_log_map
+    now = time.time()
     rc_frame = {
-            "timestamp": time.time(),
+            "timestamp": now,
             "session_id": session_id,
             "source": source,
             "channels": rc_state
@@ -26,10 +28,15 @@ def send_rc_frame(sock, session_id, rc_state, source, gcs_ip):
     json_data = json.dumps(rc_frame).encode('utf-8')
 
     try:
+        try:
+            ipaddress.ip_address(gcs_ip)
+        except ValueError:
+            logger.error(f"Invalid IP: {gcs_ip}")
+            return
         sock.sendto(json_data, (gcs_ip, GCS_UDP_PORT))
-        current_time = time.time()
-        if current_time - last_out_log_time >= UDP_SEND_LOG_DELAY:
+        last = _last_log_map.get(session_id, 0)
+        if now - last >= UDP_SEND_LOG_DELAY:
             logger.info(f"Frame sent to {gcs_ip}:{GCS_UDP_PORT}\nJSON:\n{rc_frame}\n")
-            last_out_log_time = current_time
+            _last_out_log_time[session_id] = now
     except Exception as e:
         logger.error(f"Exception occurred while sending UDP: {e}\n", exc_info=True)

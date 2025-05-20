@@ -2,27 +2,17 @@ import requests
 import subprocess
 
 from tech_utils.logger import init_logger
-logger = init_logger("RCClient_SessManager")
+logger = init_logger("Client_Main")
 
 from client.config import CLIENT_TCP_PORT, GCS_TCP_PORT
 
-from client.gcs_communication.tcp_communication import shutdown_client_server
-
-def ready():
-    print("If you are ready to fly, please type 'ready'.\nOr type 'abort' to terminate the process.")
-    while True:
-        cmd = input().strip().lower()
-        if cmd == 'ready':
-            return True
-        elif cmd == 'abort':
-            return False
-        else:
-            print("Please type 'ready' or 'abort'")
-
-def disconnect(gcs_ip, session_id, sock = None, good = False):
-    status = 'abort'
-    if good:
-        status = 'finish'
+SESSION_ABORTED='abort'
+SESSION_FINISHED='finish'
+def close(gcs_ip, session_id, sock = None, finish_flg = False):
+    print("Closing session...")
+    status = SESSION_ABORTED
+    if finish_flg:
+        status = SESSION_FINISHED
     if sock:
         try:
             sock.close()
@@ -31,21 +21,22 @@ def disconnect(gcs_ip, session_id, sock = None, good = False):
     url = f"http://{gcs_ip}:{GCS_TCP_PORT}/send-message"
     payload = {
         "session_id": session_id,
-        "message": f"{status}_session"
+        "message": f"{status}-session"
     }
-    print(f"📡 Sending {status}_session to GCS at {gcs_ip}...")
+    print(f"📡 Sending {status}-session to GCS at {gcs_ip}...")
     try:
         res = requests.post(url, json=payload, timeout=5)
         if res.status_code == 200:
-            print(f"{status} successfully sent.")
+            print(f"{status}-session successfully sent.")
             logger.info(f"{session_id} {status} message sent to GCS")
     except Exception as e:
         print(f"Something went wront. Terminating session forcedly...")
         logger.error(f"{session_id} Can't send {status} message to GCS. Exception: {e}. Terminating forcedly.")
     
-    return close()
+    return disconnect()
     
-def close():
+def disconnect():
+    print("Disconnecting from Tailnet...")
     try:
         print("🔌 Stopping Tailscale VPN...")
         subprocess.run(["sudo", "tailscale", "down"], check=True)
@@ -55,7 +46,9 @@ def close():
         print("❌ Failed to stop Tailscale:", e)
         logger.info(f"Failed to stop Tailscale: {e}")
 
-    shutdown_client_server()
+    from client.gcs_communication.tcp_communication import shutdown_client_server
+    if not shutdown_client_server():
+        print("Could not finish TCP server correctly.")
 
     return leave()
 
