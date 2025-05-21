@@ -9,6 +9,8 @@ RFD_SM_PORT = int(os.getenv("RFD_SM_PORT"))
 TOKEN_VAL_METHOD = os.getenv("TOKEN_VAL_METHOD")
 
 # === Tailscale connect to gcs ===
+TS_PATH=os.getenv("TS_PATH")
+
 TAILSCALE_IP_POLL_INTERVAL = 3
 TAILSCAPE_IP_TIMEOUT = 600
 GCS_TCP_PORT = int(os.getenv("GCS_TCP_PORT"))

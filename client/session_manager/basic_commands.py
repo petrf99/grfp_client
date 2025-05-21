@@ -35,20 +35,63 @@ def close(gcs_ip, session_id, sock = None, finish_flg = False):
     
     return disconnect()
     
+import sys
+import subprocess
+import shutil
+import logging
+
+
 def disconnect():
-    print("Disconnecting from Tailnet...")
+    from client.gcs_communication.tailscale_connect import is_tailscale_installed, get_tailscale_path, needs_sudo_retry
+    if not is_tailscale_installed():
+        print("❌ Tailscale is not installed.")
+        logger.warning("Tailscale disconnect skipped — not installed.")
+        return
+
+    os_name = sys.platform
+    ts_path = get_tailscale_path()
+    cmd = [ts_path, "down"]
+    shell_flag = os_name.startswith("win")
+
+    print("🔌 Disconnecting from Tailnet...")
+
+    # 1. Попытка без sudo
     try:
-        a = 1/0 ### DEBUG FOR MAC
-        print("🔌 Stopping Tailscale VPN...")
-        subprocess.run(["sudo", "tailscale", "down"], check=True)
-        print("✅ Tailscale VPN stopped.")
-        logger.info("Tailscale VPN stopped")
+        subprocess.run(cmd, check=True, capture_output=True, text=True, shell=shell_flag)
+        print("✅ Tailscale VPN disconnected (no sudo).")
+        logger.info("Tailscale VPN stopped without sudo")
+        return
+
     except subprocess.CalledProcessError as e:
-        print("❌ Failed to stop Tailscale:", e)
-        logger.info(f"Failed to stop Tailscale: {e}")
+        stderr = e.stderr or ""
+        needs_sudo = needs_sudo_retry(stderr, os_name)
+
+        if needs_sudo:
+            try:
+                sudo_cmd = ["sudo"] + cmd
+                subprocess.run(sudo_cmd, check=True, capture_output=True, text=True)
+                print("✅ Tailscale VPN disconnected (with sudo).")
+                logger.info("Tailscale VPN stopped with sudo")
+                return
+            except subprocess.CalledProcessError as sudo_e:
+                print("❌ Failed to disconnect Tailscale with sudo:", sudo_e)
+                logger.error(
+                    f"Tailscale sudo disconnect failed. OS: {os_name} "
+                    f"STDOUT: {sudo_e.stdout} STDERR: {sudo_e.stderr}",
+                    exc_info=True
+                )
+        else:
+            print("❌ Failed to disconnect Tailscale:", e)
+            logger.error(
+                f"Tailscale disconnect failed. OS: {os_name} "
+                f"STDOUT: {e.stdout} STDERR: {e.stderr}",
+                exc_info=True
+            )
+
     except Exception as e:
-        print("❌ Failed to stop Tailscale:", e)
-        logger.info(f"Failed to stop Tailscale: {e}")
+        print("❌ Unexpected error while disconnecting Tailscale:", e)
+        logger.exception("Unexpected error during Tailscale disconnect")
+
 
     from client.gcs_communication.tcp_communication import shutdown_client_server
     if not shutdown_client_server():

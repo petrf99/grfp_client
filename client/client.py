@@ -85,7 +85,7 @@ def main():
         return leave()
 
 
-    if not start_tailscale(session_id, auth_token):
+    if not start_tailscale(session_id, auth_token, 'client'):
         return leave()
 
     Thread(target=run_client_server, daemon=True).start()
