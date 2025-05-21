@@ -21,7 +21,7 @@ def enter_token():
             token = input().strip()
             if token == 'leave':
                 return False
-            logger.info(f"Token entered: {hash_token(token)}")
+            logger.info(f"Token entered. Hash: {hash_token(token)}")
 
             try:
                 response = requests.post(RFD_URL, json={"token": hash_token(token)}, timeout=5)
@@ -29,10 +29,10 @@ def enter_token():
                 if response.status_code == 200:
                     if data.get("status") == "ok" and "session_id" in data:
                         print("✅ Token verified successfully.")
-                        logger.info(f"Token {token} verified successully. Session-id:\n{data['session_id']}\n")
+                        logger.info(f"Token with hash {hash_token(token)} verified successully. Session-id:\n{data['session_id']}\n")
                         return token, data["session_id"]
                 else:
-                    logger.info(f"Token {token} verification failed. Reason: {data.get('reason', '')}\n")
+                    logger.info(f"Token with hash {hash_token(token)} verification failed. Reason: {data.get('reason', '')}\n")
                     print(f"❌ Token verification failed. Reason: {data.get('reason', '')}")
             except Exception as e:
                 print(f"⚠️ Could not reach RFD: {e}")

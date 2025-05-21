@@ -28,13 +28,18 @@ from typing import Optional
 
 from client.config import RFD_IP, RFD_SM_PORT, TAILSCALE_IP_POLL_INTERVAL, TAILSCAPE_IP_TIMEOUT
 
-def wait_for_tailscale_ips(session_id: str) -> Optional[tuple[str, str]]:
+import hashlib
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest().upper()
+
+def wait_for_tailscale_ips(session_id: str, auth_token: str) -> Optional[tuple[str, str]]:
     start = time.time()
     print("🔄 Waiting for GCS to connect on Genesis Private Network...")
+    hash_auth_token = hash_token(auth_token)
     try:
         while True:
             try:
-                response = requests.post(f"http://{RFD_IP}:{RFD_SM_PORT}/get-tailscale-ips", json={"session_id": session_id}, timeout=5)
+                response = requests.post(f"http://{RFD_IP}:{RFD_SM_PORT}/get-tailscale-ips", json={"session_id": session_id, 'hash_auth_token': hash_auth_token}, timeout=5)
                 if response.status_code == 200:
                     data = response.json()
                     gcs_ip = data.get("gcs_ip")

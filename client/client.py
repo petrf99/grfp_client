@@ -90,7 +90,7 @@ def main():
 
     Thread(target=run_client_server, daemon=True).start()
     
-    ips = wait_for_tailscale_ips(session_id)
+    ips = wait_for_tailscale_ips(session_id, auth_token)
     if not ips:
         return disconnect()
     else:
