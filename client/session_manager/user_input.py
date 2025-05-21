@@ -14,10 +14,11 @@ RFD_URL = f"http://{RFD_IP}:{RFD_SM_PORT}/validate-token"
 
 def enter_token():
     print("\nWelcome to Genesis Remote Flights Platform ✈️")
+    print("\nPlease enter your Mission Access Token (or enter 'leave' to exit the program):")
     
     try:
         while True:
-            token = input("Please enter your Mission Access Token (or enter 'leave' to exit the program): ").strip()
+            token = input().strip()
             if token == 'leave':
                 return False
             logger.info(f"Token entered: {hash_token(token)}")
@@ -43,10 +44,11 @@ def enter_token():
         return None
 
 def ready():
-    print("If you are ready to fly, please type 'ready'.\nOr type 'abort' to terminate the process.")
+    print("\nIf you are ready to fly, please type 'ready'.\nOr type 'abort' to terminate the process.")
     try:
         while True:
             cmd = input().strip().lower()
+            logger.info(f"Command <{cmd}> received from user")
             if cmd == 'ready':
                 return True
             elif cmd == 'abort':
@@ -62,17 +64,19 @@ def ready():
 from client.config import CONTROLLERS_LIST
 
 def select_controller():
-    print("Please enter the type of your controller:\n1 - keyboard\n2 - mouse+keyboard\n3 - gamepad\n4 - drone remote controller\n\nIf you want to terminate the process type 'abort'")
+    print("\nPlease select your controller:\n1 - keyboard\n2 - mouse+keyboard\n3 - gamepad\n4 - drone remote controller\n\nIf you want to terminate the process type 'abort'")
 
     try:
         while True:
             try:
                 inp = input()
+                logger.info(f"Controller type {inp} received from user")
                 if inp == 'abort':
                     return False
                 controller_type = int(inp)
                 if controller_type >= 1 and controller_type <= len(CONTROLLERS_LIST):
                     controller = CONTROLLERS_LIST[controller_type-1]
+                    logger.info(f"Controller {controller} is chosen")
                     return controller
                 else:
                     print(f"Please enter a number 1-{len(CONTROLLERS_LIST)}:")

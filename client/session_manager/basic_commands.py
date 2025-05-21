@@ -27,7 +27,7 @@ def close(gcs_ip, session_id, sock = None, finish_flg = False):
     try:
         res = requests.post(url, json=payload, timeout=5)
         if res.status_code == 200:
-            print(f"{status}-session successfully sent.")
+            print(f"Message {status}-session successfully sent to GCS.")
             logger.info(f"{session_id} {status} message sent to GCS")
     except Exception as e:
         print(f"Something went wront. Terminating session forcedly...")
@@ -38,11 +38,15 @@ def close(gcs_ip, session_id, sock = None, finish_flg = False):
 def disconnect():
     print("Disconnecting from Tailnet...")
     try:
+        a = 1/0 ### DEBUG FOR MAC
         print("🔌 Stopping Tailscale VPN...")
         subprocess.run(["sudo", "tailscale", "down"], check=True)
         print("✅ Tailscale VPN stopped.")
         logger.info("Tailscale VPN stopped")
     except subprocess.CalledProcessError as e:
+        print("❌ Failed to stop Tailscale:", e)
+        logger.info(f"Failed to stop Tailscale: {e}")
+    except Exception as e:
         print("❌ Failed to stop Tailscale:", e)
         logger.info(f"Failed to stop Tailscale: {e}")
 

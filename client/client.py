@@ -25,7 +25,7 @@ from client.session_manager.events import finish_event, abort_event
 def streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock):
     rc_state = RC_CHANNELS_DEFAULTS.copy()
     try:
-        while not finish_event.is_set and not abort_event.is_set():
+        while not finish_event.is_set() and not abort_event.is_set():
             clock.tick(FREQUENCY)
             for event in pygame_event_get():
                 if event.type == pygame_QUIT:
@@ -35,11 +35,10 @@ def streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock):
             rc_state = rc_input.read_frame(rc_state)
 
             send_rc_frame(sock, session_id, rc_state, controller, gcs_ip)
-    
+        pygame_quit()
     except KeyboardInterrupt:
         logger.warning("User interrupted during main_control_loop(). Aborting session.")
         abort_event.set()
-        close(gcs_ip, session_id, sock)
         return False
     
     return finish_event.is_set()
@@ -71,7 +70,6 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
 
     good_finish = streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock)
 
-    pygame_quit()
     
     print("Session complete.")
 
@@ -79,7 +77,7 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
 
 
 def main():
-
+    logger.info("Start the program")
     result = enter_token()
     if isinstance(result, tuple) and len(result) == 2:
         auth_token, session_id = result
@@ -107,7 +105,7 @@ def main():
         if not is_ready:
             return close(gcs_ip, session_id)
         else:
-            run_main_loop(session_id, gcs_ip, client_ip, controller)
+            return run_main_loop(session_id, gcs_ip, client_ip, controller)
     else:
         logger.error(f"{session_id} Aborting. Could not reach GCS.")
         return disconnect()

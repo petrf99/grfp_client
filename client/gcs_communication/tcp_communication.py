@@ -1,8 +1,10 @@
 import requests
 import time
+import threading
 
 from tech_utils.logger import init_logger
 logger = init_logger("RCClient_GCS_Connect")
+
 
 from client.config import CLIENT_TCP_PORT, GCS_TCP_PORT, NUM_START_SESS_ATTEMPTS, START_SESS_POLL_INTERVAL,TCP_KEEP_CONNECTION_RETRIES, PING_INTERVAL
 
@@ -28,19 +30,26 @@ def receive_message():
     else:
         return jsonify({"status": "error", "reason": "What?"}), 400
 
+server = None  # ссылка на сервер
+from werkzeug.serving import make_server
+
 @app.route("/shutdown", methods=["POST"])
 def shutdown():
-    shutdown_func = request.environ.get('werkzeug.server.shutdown')
-    if shutdown_func is None:
-        logger.warning("Shutdown requested, but not running with Werkzeug — skipping.")
-        return jsonify({"status": "error", "reason": "Not running with Werkzeug"}), 400
+    global server
+    if server is None:
+        return jsonify({"status": "error", "reason": "Server not running"}), 400
 
-    shutdown_func()
-    logger.info("Shutting down Flask server")
+    logger.info("Shutdown requested via /shutdown")
+    shutdown_thread = threading.Thread(target=server.shutdown)
+    shutdown_thread.start()
     return jsonify({"status": "ok", "message": "Server shutting down..."})
 
 def run_client_server():
-    app.run(host="0.0.0.0", port=CLIENT_TCP_PORT, use_reloader=False)
+    global server
+    server = make_server("0.0.0.0", CLIENT_TCP_PORT, app)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    logger.info("Flask server started")
 
 def shutdown_client_server():
     print("Stopping TCP server...")

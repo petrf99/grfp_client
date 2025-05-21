@@ -24,9 +24,9 @@ def telemetry_receiver(sock: socket.socket):
                 logger.info(f"Received from {addr}: {message}")
         except socket.timeout:
             continue
-        except OSError:
+        except OSError as e:
             print("🛑 Drone data receiver socket closed.")
-            logger.error("Drone data receiver socker closed")
+            logger.warning(f"Drone data receiver socker closed {e}")
             break
         except KeyboardInterrupt:
             print("🛑 Drone data receiver interrupted by user.")
