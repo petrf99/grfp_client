@@ -14,7 +14,7 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-from client.session_manager.events import finish_event, abort_event
+from client.session_manager.events import finish_event, abort_event, external_stop_event
 
 @app.route("/send-message", methods=["POST"])
 def receive_message():
@@ -23,8 +23,10 @@ def receive_message():
     message = data.get("message", "")
     if message == 'abort-session':
         abort_event.set()
+        external_stop_event.set()
     if message == 'finish-session':
         finish_event.set()
+        external_stop_event.set()
     if 'session' in message:
         return jsonify({"status": "ok"})
     else:

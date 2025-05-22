@@ -6,6 +6,8 @@ logger = init_logger("Client_Main")
 
 from client.config import CLIENT_TCP_PORT, GCS_TCP_PORT
 
+from client.session_manager.events import external_stop_event
+
 SESSION_ABORTED='abort'
 SESSION_FINISHED='finish'
 def close(gcs_ip, session_id, sock = None, finish_flg = False):
@@ -18,20 +20,22 @@ def close(gcs_ip, session_id, sock = None, finish_flg = False):
             sock.close()
         except Exception:
             pass
-    url = f"http://{gcs_ip}:{GCS_TCP_PORT}/send-message"
-    payload = {
-        "session_id": session_id,
-        "message": f"{status}-session"
-    }
-    print(f"📡 Sending {status}-session to GCS at {gcs_ip}...")
-    try:
-        res = requests.post(url, json=payload, timeout=5)
-        if res.status_code == 200:
-            print(f"Message {status}-session successfully sent to GCS.")
-            logger.info(f"{session_id} {status} message sent to GCS")
-    except Exception as e:
-        print(f"Something went wront. Terminating session forcedly...")
-        logger.error(f"{session_id} Can't send {status} message to GCS. Exception: {e}. Terminating forcedly.")
+        
+    if not external_stop_event.is_set():
+        url = f"http://{gcs_ip}:{GCS_TCP_PORT}/send-message"
+        payload = {
+            "session_id": session_id,
+            "message": f"{status}-session"
+        }
+        print(f"📡 Sending {status}-session to GCS at {gcs_ip}...")
+        try:
+            res = requests.post(url, json=payload, timeout=5)
+            if res.status_code == 200:
+                print(f"Message {status}-session successfully sent to GCS.")
+                logger.info(f"{session_id} {status} message sent to GCS")
+        except Exception as e:
+            print(f"Something went wront. Terminating session forcedly...")
+            logger.error(f"{session_id} Can't send {status} message to GCS. Exception: {e}. Terminating forcedly.")
     
     return disconnect()
 
