@@ -32,7 +32,17 @@ RC_CHANNELS_DEFAULTS = {
     "ch3": 1000,  # throttle (W/S)
     "ch4": 1500,  # yaw (A/D)
     "ch5": 1000,  # arm/disarm (Space)
-    "ch6": 1000   # aux (Shift)
+    "ch6": 1000,   # aux (Shift)
+    "ch7": 1000,
+    "ch8": 1000,
+    "ch9": 1000,
+    "ch10": 1000,
+    "ch11": 1000,
+    "ch12": 1000,
+    "ch13": 1000,
+    "ch14": 1000,
+    "ch15": 1000,
+    "ch16": 1000,
 }
 
 # Controllers list

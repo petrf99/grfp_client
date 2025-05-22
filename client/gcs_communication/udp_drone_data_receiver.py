@@ -18,9 +18,9 @@ def telemetry_receiver(sock: socket.socket):
         try:
             data, addr = sock.recvfrom(65536)
             message = data.decode(errors="ignore")
-            print(f"📥 Received from {addr}: {message}")
             cur_time = time.time()
             if cur_time - last_inp_log_time >= UDP_SEND_LOG_DELAY:
+                print(f"📥 Received from {addr}: {message}")
                 logger.info(f"Received from {addr}: {message}")
         except socket.timeout:
             continue

@@ -102,11 +102,14 @@ def get_tailscaled_path():
 
 
 def is_tailscaled_running() -> bool:
+    # True только если процесс запущен и сокет существует
     try:
         result = subprocess.run(["pgrep", "tailscaled"], capture_output=True, text=True)
-        return result.returncode == 0
+        if result.returncode != 0:
+            return False
+        return True #os.path.exists("/var/run/tailscaled.socket")
     except Exception as e:
-        logger.warning(f"Error checking tailscaled process: {e}")
+        logger.warning(f"Error checking tailscaled status: {e}")
         return False
 
 
@@ -158,16 +161,19 @@ import shlex
 def start_tailscaled_if_needed() -> bool:
     if is_tailscaled_running():
         return True
+    
+    logger.info("Starting tailscaled")
 
     path = get_tailscaled_path()
     if not path:
         logger.error("❌ tailscaled binary not found.")
         return False
+    
 
     try:
         print(f"🚀 Starting tailscaled via: {path}")
         # ⛔️ Важно: используем shell=True + nohup + redirect + background
-        shell_cmd = f"nohup {shlex.quote(path)} >/dev/null 2>&1 &"
+        shell_cmd = f"nohup {shlex.quote(path)} --state=mem: --tun=userspace-networking >/dev/null 2>&1 &"
         sudo_cmd = ["sudo", "sh", "-c", shell_cmd]
 
         subprocess.run(
@@ -181,8 +187,10 @@ def start_tailscaled_if_needed() -> bool:
             time.sleep(1.5)
             if is_tailscaled_running():
                 print("✅ tailscaled is now running.")
+                logger.info("tailscaled is now running")
                 return True
         print("❌ tailscaled did not start within timeout.")
+        logger.error("tailscaled did not start within timeout.")
         return False
     except Exception as e:
         logger.error(f"❌ Failed to start tailscaled: {e}")
@@ -211,6 +219,7 @@ def tailscale_up(hostname: str, auth_token: str):
     cmd = [ts_path, "up", f"--authkey={auth_token}", f"--hostname={hostname}"]
 
     try:
+        logger.info(f"Starting tailscale for {hostname}")
         subprocess.run(cmd, check=True, capture_output=True, text=True, shell=os_name.startswith("win"))
 
         print("✅ Tailscale started.")
@@ -221,6 +230,7 @@ def tailscale_up(hostname: str, auth_token: str):
         stderr = e.stderr or ""
         if needs_sudo_retry(stderr, os_name):
             # 2. Пробуем с sudo (если ошибка похожа на "нужен tailscaled")
+            logger.info(f"Retry to start tailscale with sudo for {hostname}")
             try:
                 sudo_cmd = ["sudo"] + cmd
                 subprocess.run(
