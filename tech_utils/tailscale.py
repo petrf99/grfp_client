@@ -173,7 +173,7 @@ def start_tailscaled_if_needed() -> bool:
     try:
         print(f"🚀 Starting tailscaled via: {path}")
         # ⛔️ Важно: используем shell=True + nohup + redirect + background
-        shell_cmd = f"nohup {shlex.quote(path)} --state=mem: --tun=userspace-networking >/dev/null 2>&1 &"
+        shell_cmd = f"nohup {shlex.quote(path)} --state=mem: >/dev/null 2>&1 &"
         sudo_cmd = ["sudo", "sh", "-c", shell_cmd]
 
         subprocess.run(

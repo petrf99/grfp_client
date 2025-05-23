@@ -95,7 +95,6 @@ def send_start_message_to_gcs(gcs_ip: str, session_id: str):
     except KeyboardInterrupt:
         abort_event.set()
         logger.warning(f"{session_id} aborted by keyboard interrupt while sending handshake to GCS")
-        close(gcs_ip, session_id)
 
     print("❌ Could not confirm handshake with GCS.")
     logger.info(f"{session_id} Could not confirm handshake with GCS")

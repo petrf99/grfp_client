@@ -10,7 +10,7 @@ from client.gcs_communication.tailscale_connect import start_tailscale, wait_for
 from client.gcs_communication.tcp_communication import send_start_message_to_gcs, run_client_server, keep_connection
 
 from client.gcs_communication.udp_rc_input_sender import send_rc_frame
-from client.gcs_communication.udp_drone_data_receiver import telemetry_receiver
+from client.gcs_communication.udp_drone_data_receiver import telemetry_receiver, video_receiver
 
 from client.inputs import get_rc_input
 
@@ -58,22 +58,29 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
 
     # === Создание UDP-сокета ===
     from client.gcs_communication.udp_rc_input_sender import get_socket
-    sock = get_socket()
+    from client.config import CLIENT_TLMT_RECV_PORT, CLIENT_VID_RECV_PORT,GCS_RC_RECV_PORT
+    sock_tlmt = get_socket(CLIENT_TLMT_RECV_PORT)
+    sock_vid = get_socket(CLIENT_VID_RECV_PORT)
+    sock_rc = get_socket(GCS_RC_RECV_PORT)
 
     # === Telemetry receiver === 
-    recv_thread = Thread(target=telemetry_receiver, args=(sock,), daemon=True)
+    recv_thread = Thread(target=telemetry_receiver, args=(sock_tlmt,), daemon=True)
+    recv_thread.start()
+
+    # === Video receiver === 
+    recv_thread = Thread(target=video_receiver, args=(sock_vid,), daemon=True)
     recv_thread.start()
 
     # === Главный цикл ===
 
     logger.info(f"Session ID: {session_id}\n")
 
-    good_finish = streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock)
+    good_finish = streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock_rc)
 
     
     print("Session complete.")
 
-    return close(gcs_ip, session_id, sock, finish_flg=good_finish)
+    return close(gcs_ip, session_id, sock=sock_rc, finish_flg=good_finish)
 
 
 def main():

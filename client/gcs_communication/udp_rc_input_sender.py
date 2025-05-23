@@ -3,15 +3,15 @@ import time
 import socket
 import ipaddress
 
-from client.config import UDP_SEND_LOG_DELAY, GCS_UDP_PORT, CLIENT_UDP_PORT
+from client.config import UDP_SEND_LOG_DELAY, GCS_RC_RECV_PORT, CLIENT_TLMT_RECV_PORT, CLIENT_VID_RECV_PORT
 
 from tech_utils.logger import init_logger
 logger = init_logger("RCClientUDP")
 
 # === Создание UDP-сокета ===
-def get_socket():
+def get_socket(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", CLIENT_UDP_PORT))  # чтобы слушать телеметрию
+    sock.bind(("0.0.0.0", port))  # чтобы слушать телеметрию
     return sock
 
 
@@ -33,10 +33,10 @@ def send_rc_frame(sock, session_id, rc_state, source, gcs_ip):
         except ValueError:
             logger.error(f"Invalid IP: {gcs_ip}")
             return
-        sock.sendto(json_data, (gcs_ip, GCS_UDP_PORT))
+        sock.sendto(json_data, (gcs_ip, GCS_RC_RECV_PORT))
         last = _last_log_map.get(session_id, 0)
         if now - last >= UDP_SEND_LOG_DELAY:
-            logger.info(f"Frame sent to {gcs_ip}:{GCS_UDP_PORT}\nJSON:\n{rc_frame}\n")
+            logger.info(f"Frame sent to {gcs_ip}:{GCS_RC_RECV_PORT}\nJSON:\n{rc_frame}\n")
             _last_log_map[session_id] = now
     except Exception as e:
         logger.error(f"Exception occurred while sending UDP: {e}\n", exc_info=True)

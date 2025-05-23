@@ -22,8 +22,9 @@ TCP_KEEP_CONNECTION_RETRIES=3
 PING_INTERVAL=1
 
 # === UDP GCS-Client params ===
-GCS_UDP_PORT=int(os.getenv("GCS_UDP_PORT"))
-CLIENT_UDP_PORT=int(os.getenv("GCS_UDP_PORT"))
+CLIENT_VID_RECV_PORT=int(os.getenv("CLIENT_VID_RECV_PORT"))
+CLIENT_TLMT_RECV_PORT=int(os.getenv("CLIENT_TLMT_RECV_PORT"))
+GCS_RC_RECV_PORT=int(os.getenv("GCS_RC_RECV_PORT"))
 
 # === Константы каналов ===
 RC_CHANNELS_DEFAULTS = {
