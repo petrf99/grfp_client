@@ -2,3 +2,4 @@ pygame
 dotenv
 requests
 flask
+opencv-python

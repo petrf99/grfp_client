@@ -4,53 +4,23 @@ from tech_utils.logger import init_logger
 logger = init_logger("Client_Main")
 
 
-from client.config import FREQUENCY, RC_CHANNELS_DEFAULTS
-
 from client.gcs_communication.tailscale_connect import start_tailscale, wait_for_tailscale_ips
 from client.gcs_communication.tcp_communication import send_start_message_to_gcs, run_client_server, keep_connection
 
-from client.gcs_communication.udp_rc_input_sender import send_rc_frame
 from client.gcs_communication.udp_drone_data_receiver import telemetry_receiver, video_receiver
 
 from client.inputs import get_rc_input
 
-from client.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame_QUIT
+from client.gui.gui_loop import gui_loop
 
 from client.session_manager.basic_commands import disconnect, close, leave
 from client.session_manager.user_input import ready, select_controller, enter_token
-
-from client.session_manager.events import finish_event, abort_event
-
-
-def streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock):
-    rc_state = RC_CHANNELS_DEFAULTS.copy()
-    try:
-        while not finish_event.is_set() and not abort_event.is_set():
-            clock.tick(FREQUENCY)
-            for event in pygame_event_get():
-                if event.type == pygame_QUIT:
-                    finish_event.set()
-                rc_state = rc_input.process_event(event, rc_state)
-
-            rc_state = rc_input.read_frame(rc_state)
-
-            send_rc_frame(sock, session_id, rc_state, controller, gcs_ip)
-        pygame_quit()
-    except KeyboardInterrupt:
-        logger.warning("User interrupted during main_control_loop(). Aborting session.")
-        abort_event.set()
-        return False
-    
-    return finish_event.is_set()
 
 
 def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str):
     # === Pinging the GCS ===
     keep_conn_thread = Thread(target = keep_connection, args = (client_ip, session_id), daemon=True)
     keep_conn_thread.start()
-
-    # === Initialize pygame ===
-    screen, clock = pygame_init()
 
     # Get the controller
     rc_input = get_rc_input(controller)
@@ -61,7 +31,6 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
     from client.config import CLIENT_TLMT_RECV_PORT, CLIENT_VID_RECV_PORT,GCS_RC_RECV_PORT
     sock_tlmt = get_socket(CLIENT_TLMT_RECV_PORT)
     sock_vid = get_socket(CLIENT_VID_RECV_PORT)
-    sock_rc = get_socket(GCS_RC_RECV_PORT)
 
     # === Telemetry receiver === 
     recv_thread = Thread(target=telemetry_receiver, args=(sock_tlmt,), daemon=True)
@@ -75,7 +44,8 @@ def run_main_loop(session_id: str, gcs_ip: str, client_ip: str, controller: str)
 
     logger.info(f"Session ID: {session_id}\n")
 
-    good_finish = streaming_loop(session_id, gcs_ip, clock, rc_input, controller, sock_rc)
+    with get_socket(None, False) as sock_rc:
+        good_finish = gui_loop(session_id, gcs_ip, rc_input, controller, sock_rc)
 
     
     print("Session complete.")

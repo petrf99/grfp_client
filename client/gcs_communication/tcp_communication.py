@@ -3,7 +3,7 @@ import time
 import threading
 
 from tech_utils.logger import init_logger
-logger = init_logger("RCClient_GCS_Connect")
+logger = init_logger("Client_GCS_Connect")
 
 
 from client.config import CLIENT_TCP_PORT, GCS_TCP_PORT, NUM_START_SESS_ATTEMPTS, START_SESS_POLL_INTERVAL,TCP_KEEP_CONNECTION_RETRIES, PING_INTERVAL

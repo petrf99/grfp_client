@@ -1,7 +1,7 @@
 import pygame
 
 from tech_utils.logger import init_logger
-logger = init_logger("RCClientGUI")
+logger = init_logger("Client_GUI")
 
 from client.config import *
 
@@ -16,10 +16,13 @@ def pygame_init(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="RC Controller")
         logger.error(f"[ERROR] Pygame init failed: {e}", exc_info=True)
         raise
 
+    # 🖥️ Инициализация экрана
+    font = pygame.font.Font(None, 24)  # безопасный способ
+
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption(title)
     clock = pygame.time.Clock()
-    return screen, clock
+    return screen, font, clock
 
 def pygame_event_get():
     return pygame.event.get()
