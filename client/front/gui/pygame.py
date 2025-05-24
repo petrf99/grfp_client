@@ -1,7 +1,7 @@
 import pygame
 
 from tech_utils.logger import init_logger
-logger = init_logger("Client_GUI")
+logger = init_logger("Front_GUI")
 
 from client.config import *
 
@@ -18,6 +18,8 @@ def pygame_init(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="RC Controller")
 
     # 🖥️ Инициализация экрана
     font = pygame.font.Font(None, 24)  # безопасный способ
+    if font is None:
+        logger.error("Font failed to load!")
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption(title)

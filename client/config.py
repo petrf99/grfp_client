@@ -62,4 +62,8 @@ UDP_SEND_LOG_DELAY = 1
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 TELEMETRY_GUI_DRAW_FIELDS=["timestamp", "rc_channels"]
+
+# Local ports
 LOCAL_VIDEO_PORT = int(os.getenv("LOCAL_VIDEO_PORT"))
+LOCAL_TLMT_PORT = int(os.getenv("LOCAL_TLMT_PORT"))
+LOCAL_RC_PORT = int(os.getenv("LOCAL_RC_PORT"))

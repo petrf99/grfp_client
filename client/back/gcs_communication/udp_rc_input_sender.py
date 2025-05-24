@@ -8,13 +8,6 @@ from client.config import UDP_SEND_LOG_DELAY, GCS_RC_RECV_PORT, CLIENT_TLMT_RECV
 from tech_utils.logger import init_logger
 logger = init_logger("ClientUDP")
 
-# === Создание UDP-сокета ===
-def get_socket(port=None, bind=True):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    if bind:
-        sock.bind(("0.0.0.0", port))  # чтобы слушать телеметрию
-    return sock
-
 
 _last_log_map = {}
 def send_rc_frame(sock, session_id, rc_state, source, gcs_ip):
