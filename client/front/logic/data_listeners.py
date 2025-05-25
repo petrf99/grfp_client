@@ -29,10 +29,8 @@ def get_telemetry(tlmt_sock):
         while not sess_state.finish_event.is_set() and not sess_state.abort_event.is_set():
             try:
                 data, addr = tlmt_sock.recvfrom(65536)
-                print(data)
                 telemetry_data.clear()
                 telemetry_data.update(json.loads(data))
-                print(telemetry_data)
                 cur_time = time.time()
                 init_timestamp = telemetry_data.get("rc_channels", {}).get("init_timestamp")
                 if init_timestamp:

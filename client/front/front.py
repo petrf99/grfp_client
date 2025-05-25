@@ -33,12 +33,9 @@ def main():
                 logger.info(f"Command received: {cmd}")
 
             if cmd in ["exit", "leave"]:
-                if state.session_id:
-                    close_session(state.session_id)
-                shutdown()
                 print("See you next flight!")
                 logger.info("Program exited by user.")
-                return
+                break
 
             if cmd == "abort":
                 logger.info("Abort command received.")
@@ -50,9 +47,11 @@ def main():
                 else:
                     print("No session to stop.")
                 sid = state.session_id
-                state.clear()
                 sess_state.clear()
-                print(f"Session {sid} stopped. Type 'start' to begin a new session.")
+                print(f"Session {sid} stopped.")
+                if not state.ready_flg:
+                    print(" Type 'start' to begin a new session.")
+                state.clear()
                 continue
 
             if cmd == "start" and not state.start_flg:
@@ -82,6 +81,7 @@ def main():
                 if cmd == "ready":
                     logger.info(f"User confirmed ready for session {state.session_id}.")
                     launch_session(state)
+                    break
                 else:
                     print("Please type 'ready' to begin or 'abort' to cancel.")
                 continue
@@ -90,12 +90,13 @@ def main():
 
     except KeyboardInterrupt:
         logger.warning("KeyboardInterrupt received.")
+        print("\nSession terminated. See you next flight!")
+    finally:
         if state.session_id:
             close_session(state.session_id)
         shutdown()
-        print("\nSession terminated. See you next flight!")
-    finally:
         bp.join()
+        return
 
 
 

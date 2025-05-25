@@ -84,7 +84,7 @@ def launch_session(state):
         finish_flg = gui_loop(state.session_id, state.rc_input, state.controller)
         logger.info(f"Session completed and stopped with finish_flg {finish_flg}.")
     if not sess_state.external_stop_event.is_set():
-        print("Flight session stopped. You can start a new one by typing 'start'")
+        print("Flight session stopped.")
     close_session(state.session_id, finish_flg=finish_flg)
     state.clear()
     sess_state.clear()

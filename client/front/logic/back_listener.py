@@ -41,7 +41,7 @@ def back_polling():
                     time.sleep(1)
                     sess_state.clear()
                     state.clear()
-                    print("Session stopped. You can start a new one by entering 'start'")
+                    print("Session stopped.")
                 elif message == "finish":
                     logger.info("Finish command received from Back-end")
                     print("Finish command received from Back-end. Stopping the session.")
@@ -50,7 +50,7 @@ def back_polling():
                     time.sleep(1)
                     sess_state.clear()
                     state.clear()
-                    print("Session stopped. You can start a new one by entering 'start'")
+                    print("Session stopped.")
                 elif message == "connected":
                     sess_state.connected_event.set()
                     print("Session connected. Press Enter to continue")
