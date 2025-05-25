@@ -2,6 +2,7 @@ import sys
 import shutil
 import re
 import subprocess
+from tech_utils.safe_subp_run import safe_subp_run
 import os
 import time
 
@@ -176,8 +177,9 @@ def start_tailscaled_if_needed() -> bool:
         shell_cmd = f"nohup {shlex.quote(path)} --state=mem: >/dev/null 2>&1 &"
         sudo_cmd = ["sudo", "sh", "-c", shell_cmd]
 
-        subprocess.run(
+        safe_subp_run(
             sudo_cmd,
+            retries=3, timeout=5, delay_between_retries=3,
             check=True,
             text=True,
             stdin=sys.stdin  # позволяет ввести пароль
@@ -187,6 +189,7 @@ def start_tailscaled_if_needed() -> bool:
             time.sleep(1.5)
             if is_tailscaled_running():
                 print("✅ tailscaled is now running.")
+                time.sleep(3)
                 logger.info("tailscaled is now running")
                 return True
         print("❌ tailscaled did not start within timeout.")
@@ -220,7 +223,10 @@ def tailscale_up(hostname: str, auth_token: str):
 
     try:
         logger.info(f"Starting tailscale for {hostname}")
-        subprocess.run(cmd, check=True, capture_output=True, text=True, shell=os_name.startswith("win"))
+        safe_subp_run(cmd, retries=3,
+                timeout=5,
+            delay_between_retries=3,
+            check=True, capture_output=True, text=True, shell=os_name.startswith("win"))
 
         print("✅ Tailscale started.")
         logger.info(f"{hostname} Tailscale start succeeded on {os_name}")
@@ -233,8 +239,9 @@ def tailscale_up(hostname: str, auth_token: str):
             logger.info(f"Retry to start tailscale with sudo for {hostname}")
             try:
                 sudo_cmd = ["sudo"] + cmd
-                subprocess.run(
+                safe_subp_run(
                     sudo_cmd,
+                    retries=3, timeout=60, delay_between_retries=3,
                     check=True,
                     capture_output=True,
                     text=True,
@@ -306,7 +313,8 @@ def tailscale_down():
 
     # 1. Попытка без sudo
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True, shell=shell_flag)
+        safe_subp_run(cmd, retries=3, timeout=5, delay_between_retries=3,
+                       check=True, capture_output=True, text=True, shell=shell_flag)
         print("✅ Tailscale VPN disconnected (no sudo).")
         logger.info("Tailscale VPN stopped without sudo")
 
@@ -317,7 +325,8 @@ def tailscale_down():
         if needs_sudo:
             try:
                 sudo_cmd = ["sudo"] + cmd
-                subprocess.run(sudo_cmd, check=True, capture_output=True, text=True, stdin=sys.stdin)
+                safe_subp_run(sudo_cmd, retries=3, timeout=60, delay_between_retries=3,
+                               check=True, capture_output=True, text=True, stdin=sys.stdin)
                 print("✅ Tailscale VPN disconnected (with sudo).")
                 logger.info("Tailscale VPN stopped with sudo")
             except subprocess.CalledProcessError as sudo_e:

@@ -6,7 +6,9 @@ import time
 import requests
 from typing import Optional
 
-from client.config import RFD_IP, RFD_SM_PORT, TAILSCALE_IP_POLL_INTERVAL, TAILSCAPE_IP_TIMEOUT
+from client.back.front_communication.front_msg_sender import send_message_to_front
+
+from client.back.config import RFD_IP, RFD_SM_PORT, TAILSCALE_IP_POLL_INTERVAL, TAILSCAPE_IP_TIMEOUT
 from tech_utils.tailscale import tailscale_up
 
 import hashlib
@@ -19,7 +21,7 @@ def start_tailscale(session_id, auth_token, tag):
 
 def wait_for_tailscale_ips(session_id: str, auth_token: str) -> Optional[tuple[str, str]]:
     start = time.time()
-    print("🔄 Waiting for GCS to connect on Genesis Private Network...")
+    send_message_to_front("🔄 Waiting for GCS to connect on Genesis Private Network...")
     hash_auth_token = hash_token(auth_token)
     try:
         while True:
@@ -30,14 +32,14 @@ def wait_for_tailscale_ips(session_id: str, auth_token: str) -> Optional[tuple[s
                     gcs_ip = data.get("gcs_ip")
                     client_ip = data.get("client_ip")
                     if gcs_ip and client_ip:
-                        print(f"✅ Both sides connected. GCS IP: {gcs_ip}, Client IP: {client_ip}")
+                        send_message_to_front(f"✅ Both sides connected. GCS IP: {gcs_ip}, Client IP: {client_ip}")
                         logger.info(f"{session_id} Connected. GCS: {gcs_ip}, Client: {client_ip}")
                         return gcs_ip, client_ip
                 else:
                     logger.info(f"{session_id} Waiting for GCS to be ready...")
-                    print("Waiting for GCS to be ready...")
+                    send_message_to_front("Waiting for GCS to be ready...")
             except Exception as e:
-                print("Process failed: Could not connect on Genesis Private Network")
+                send_message_to_front("Could not connect on Genesis Private Network")
                 logger.warning(f"{session_id} Could not query tailscale-ips: {e}")
 
 
@@ -45,10 +47,14 @@ def wait_for_tailscale_ips(session_id: str, auth_token: str) -> Optional[tuple[s
 
             if time.time() - start >= TAILSCAPE_IP_TIMEOUT:
                 logger.error(f"{session_id} Timeout while waiting for Tailscale IPs")
-                print("Process failed: Timeout while connecting to Genesis Private Network")
+                send_message_to_front("Timeout while connecting to Genesis Private Network")
                 return None
             
     except KeyboardInterrupt:
         logger.warning(f"{session_id} Interrupted by user while waiting for Tailscale")
         return None
+    
+
+
+
     
