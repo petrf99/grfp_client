@@ -1,12 +1,10 @@
-from uuid import UUID
-from tech_utils.timed_input import timed_input
+import uuid 
 from tech_utils.logger import init_logger
-from client.config import CONTROLLERS_LIST
+from client.front.config import CONTROLLERS_LIST
 
-from client.front.logic.token_validator import validate_token
-from client.front.logic.back_interaction import start_session, stop, launch_streams
+from client.front.logic.back_sender import start_session, close_session, launch_streams, token_validator
 from client.front.gui.gui_loop import gui_loop
-from client.inputs import get_rc_input
+from client.front.inputs import get_rc_input
 
 logger = init_logger("Front_Main")
 
@@ -21,33 +19,42 @@ class FrontState:
         self.controller = None
         self.rc_input = None
 
-    def reset(self):
+    def clear(self):
         self.__init__()
+
+state = FrontState()
 
 
 def handle_token_input(state, cmd):
-    session_id = validate_token(cmd)
-    if isinstance(session_id, UUID):
+    session_id = token_validator(cmd)
+    try:
+        uuid.UUID(session_id)
         state.session_id = session_id
         state.val_token_flg = True
         logger.info(f"Token validated successfully: {session_id}")
         print("Token verification succeeded.")
-    else:
+        return True
+    except:
         logger.warning("Token validation failed.")
         print("Token validation failed.")
         state.session_id = None
+        return False
 
-
+from client.front.logic.back_listener import sess_state
 def handle_session_start(state):
     state.sess_start_flg = start_session(state.session_id)
     if state.sess_start_flg:
+        print("Session is being started. Please wait.\nYou may be asked to enter password in order to run Tailscale")
+        sess_state.connected_event.wait()
         logger.info(f"Session {state.session_id} started.")
+        return True
     else:
         print("Unable to start session.")
         logger.error("Session start failed.")
-        stop(state.session_id)
+        close_session(state.session_id)
         state.reset()
         print("Session stopped. You can start a new one by typing 'start'")
+        return False
 
 
 def handle_controller_selection(state, cmd):
@@ -62,15 +69,23 @@ def handle_controller_selection(state, cmd):
         logger.info(f"Controller selected: {controller}")
         print("Controller registered. Type 'ready' to start your flight or 'abort'.")
         state.ready_flg = True
+        return True
     else:
         print(f"Invalid controller. Please enter a number 1-{len(CONTROLLERS_LIST)}.")
+        return False
 
 
 def launch_session(state):
-    launch_streams(state.session_id)
-    logger.info("Streams launched. Starting GUI loop...")
-    gui_loop(state.session_id, state.rc_input, state.controller)
-    stop(state.session_id, finish_flg=True)
-    logger.info("Session completed and stopped.")
-    print("Flight session finished.")
-    state.reset()
+    finish_flg = False
+    if not launch_streams(state.session_id, state.controller):
+        print("Failed streams launch")
+    else:
+        logger.info("Streams launched. Starting GUI loop...")
+        finish_flg = gui_loop(state.session_id, state.rc_input, state.controller)
+        logger.info(f"Session completed and stopped with finish_flg {finish_flg}.")
+    if not sess_state.external_stop_event.is_set():
+        print("Flight session stopped. You can start a new one by typing 'start'")
+    close_session(state.session_id, finish_flg=finish_flg)
+    state.clear()
+    sess_state.clear()
+    return finish_flg

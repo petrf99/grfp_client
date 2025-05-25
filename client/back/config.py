@@ -9,8 +9,6 @@ RFD_SM_PORT = int(os.getenv("RFD_SM_PORT"))
 TOKEN_VAL_METHOD = os.getenv("TOKEN_VAL_METHOD")
 
 # === Tailscale connect to gcs ===
-TS_PATH=os.getenv("TS_PATH")
-
 TAILSCALE_IP_POLL_INTERVAL = 3
 TAILSCAPE_IP_TIMEOUT = 600
 GCS_TCP_PORT = int(os.getenv("GCS_TCP_PORT"))
@@ -25,6 +23,7 @@ PING_INTERVAL=1
 CLIENT_VID_RECV_PORT=int(os.getenv("CLIENT_VID_RECV_PORT"))
 CLIENT_TLMT_RECV_PORT=int(os.getenv("CLIENT_TLMT_RECV_PORT"))
 GCS_RC_RECV_PORT=int(os.getenv("GCS_RC_RECV_PORT"))
+UDP_SEND_LOG_DELAY = 3
 
 # === Константы каналов ===
 RC_CHANNELS_DEFAULTS = {
@@ -48,22 +47,7 @@ RC_CHANNELS_DEFAULTS = {
 
 # Controllers list
 CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'drone_radio']
-
-# Keyboard params
-STEP_ANALOG = 20      # шаг изменения каналов
-LIMIT_MIN = 1000
-LIMIT_MAX = 2000
-
-# Main loop
-FREQUENCY = 20
-UDP_SEND_LOG_DELAY = 1
-
-# GUI
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
-TELEMETRY_GUI_DRAW_FIELDS=["timestamp", "rc_channels"]
+BACKEND_CONTROLLER = ['gamepad', 'drone_radio']
 
 # Local ports
-LOCAL_VIDEO_PORT = int(os.getenv("LOCAL_VIDEO_PORT"))
-LOCAL_TLMT_PORT = int(os.getenv("LOCAL_TLMT_PORT"))
-LOCAL_RC_PORT = int(os.getenv("LOCAL_RC_PORT"))
+CLIENT_BACK_SERV_PORT=int(os.getenv("CLIENT_BACK_SERV_PORT"))

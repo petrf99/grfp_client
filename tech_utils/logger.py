@@ -43,7 +43,7 @@ def init_logger(name: str = "App") -> logging.Logger:
     # 🔁 Настроим werkzeug логгер, чтобы он логировал в те же хендлеры
     werkzeug_logger = logging.getLogger('werkzeug')
     werkzeug_logger.setLevel(level)
-    werkzeug_logger.handlers = handlers
+    werkzeug_logger.handlers = []
     werkzeug_logger.propagate = False  # чтобы не дублировалось
 
     return logger

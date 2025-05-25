@@ -3,7 +3,7 @@ import pygame
 from tech_utils.logger import init_logger
 logger = init_logger("Front_GUI")
 
-from client.config import *
+from client.front.config import SCREEN_HEIGHT, SCREEN_WIDTH
 
 pygame_QUIT = pygame.QUIT
 
@@ -30,4 +30,8 @@ def pygame_event_get():
     return pygame.event.get()
 
 def pygame_quit():
-    pygame.quit()
+    try:
+        pygame.display.quit()
+        pygame.quit()
+    except Exception as e:
+        print(f"Error during pygame quit: {e}")

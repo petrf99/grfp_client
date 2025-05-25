@@ -1,36 +1,64 @@
 import json
 import time
 import socket
-import ipaddress
-
-from client.config import UDP_SEND_LOG_DELAY, GCS_RC_RECV_PORT, CLIENT_TLMT_RECV_PORT, CLIENT_VID_RECV_PORT
 
 from tech_utils.logger import init_logger
-logger = init_logger("ClientUDP")
+logger = init_logger("Back_RC_Streamer")
 
 
-_last_log_map = {}
-def send_rc_frame(sock, session_id, rc_state, source, gcs_ip):
-    global _last_log_map
-    now = time.time()
-    rc_frame = {
-            "timestamp": now,
-            "session_id": session_id,
-            "source": source,
-            "channels": rc_state
-        }
-    json_data = json.dumps(rc_frame).encode('utf-8')
+from client.back.config import BACKEND_CONTROLLER, GCS_RC_RECV_PORT, RC_CHANNELS_DEFAULTS, UDP_SEND_LOG_DELAY
+from tech_utils.udp import get_socket
+from client.back.session_manager.state import sess_state
+from client.back.front_communication.front_msg_sender import send_message_to_front
 
+def stream_rc_to_gcs(session_id, controller, gcs_ip):
+
+    send_message_to_front("📡 Starting RC-input streamer...")
+    logger.info("Starting RC-input streamer")
+    front_rc_flg = False
+    sock = None
+    if controller not in BACKEND_CONTROLLER:
+        logger.info("Assigned to restream RC from Front")
+        front_rc_flg = True
+        sock = get_socket("0.0.0.0", GCS_RC_RECV_PORT, bind=True)
+    else:
+        sock = get_socket(host=None, port=None, bind=False)
+        logger.info("Assigned to stream RC from Back")
+    
+    last_inp_log_time = 0
     try:
-        try:
-            ipaddress.ip_address(gcs_ip)
-        except ValueError:
-            logger.error(f"Invalid IP: {gcs_ip}")
-            return
-        sock.sendto(json_data, (gcs_ip, GCS_RC_RECV_PORT))
-        last = _last_log_map.get(session_id, 0)
-        if now - last >= UDP_SEND_LOG_DELAY:
-            logger.info(f"Frame sent to {gcs_ip}:{GCS_RC_RECV_PORT}\nJSON:\n{rc_frame}\n")
-            _last_log_map[session_id] = now
-    except Exception as e:
-        logger.error(f"Exception occurred while sending UDP: {e}\n", exc_info=True)
+        while not sess_state.finish_event.is_set() and not sess_state.abort_event.is_set():
+            cur_time = time.time()
+            try:
+                rc_frame = {
+                            "timestamp": cur_time,
+                            "session_id": session_id,
+                            "source": controller,
+                        }
+                if front_rc_flg:
+                    data, addr = sock.recvfrom(65536)
+                    rc_frame["channels"] = json.loads(data)
+                else:
+                    rc_frame["channels"] = json.loads(RC_CHANNELS_DEFAULTS) # Mock value
+                        
+                
+                json_data = json.dumps(rc_frame).encode('utf-8')
+                sock.sendto(json_data, (gcs_ip, GCS_RC_RECV_PORT))
+
+                if cur_time - last_inp_log_time >= UDP_SEND_LOG_DELAY:
+                    logger.info(f"RC-input {json_data} sent to GCS on {gcs_ip}:{GCS_RC_RECV_PORT}")
+                    last_inp_log_time = cur_time
+            except socket.timeout:
+                continue
+            except OSError as e:
+                send_message_to_front("🛑 RC-input streamer socket closed.")
+                logger.warning(f"RC-input streamer socket closed {e}")
+                break
+            except Exception as e:
+                send_message_to_front(f"⚠️ RC-input streamer error: {e}")
+                logger.error(f"RC-input streamer RC streamer error: {e}")
+    except KeyboardInterrupt:
+        send_message_to_front("🛑 RC-input streamer interrupted by user.")
+        logger.warning("RC-input streamer interrupted by user.")
+    finally:
+        sock.close()
