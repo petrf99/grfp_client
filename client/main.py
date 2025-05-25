@@ -4,6 +4,8 @@ import sys
 import os
 from pathlib import Path
 
+from client.front.front import main as front_main
+
 def main():
     # Запускаем бэк
     print("[LAUNCHER] Starting backend...")
@@ -16,7 +18,8 @@ def main():
     try:
         # Запускаем фронт — он останется в терминале
         print("[LAUNCHER] Starting frontend...")
-        subprocess.run(["python", "-m", "client.front.front"])  # здесь ты можешь заменить на electron . / npm run start
+        #front_main() 
+        subprocess.run(["python", "-m", "client.front.front"], close_fds=True)  # здесь ты можешь заменить на electron . / npm run start
 
     except KeyboardInterrupt:
         print("[LAUNCHER] Ctrl+C — exiting frontend...")

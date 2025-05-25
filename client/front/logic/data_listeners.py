@@ -26,19 +26,21 @@ telemetry_data = {}
 def get_telemetry(tlmt_sock):
     global telemetry_data
     try:
-        while not sess_state.abort_event.is_set() and not sess_state.finish_event.is_set():
-            data, addr = tlmt_sock.recvfrom(65536)
-            telemetry_data = json.loads(data)
-            cur_time = time.time()
-            init_timestamp = telemetry_data.get("rc_channels", {}).get("init_timestamp")
-            if init_timestamp:
-                telemetry_data["round_trip_time_ms"] = int(1000*(cur_time - init_timestamp))
-    except socket.timeout:
-        pass
+        while not sess_state.finish_event.is_set() and not sess_state.abort_event.is_set():
+            try:
+                data, addr = tlmt_sock.recvfrom(65536)
+                print(data)
+                telemetry_data.clear()
+                telemetry_data.update(json.loads(data))
+                print(telemetry_data)
+                cur_time = time.time()
+                init_timestamp = telemetry_data.get("rc_channels", {}).get("init_timestamp")
+                if init_timestamp:
+                    telemetry_data["round_trip_time_ms"] = int(1000*(cur_time - init_timestamp))
+            except socket.timeout:
+                pass
     except OSError as e:
         logger.warning(f"Telemetry receiver socker closed {e}")
-        return {}
     except Exception as e:
         logger.error(f"Telemetry receiver error: {e}")
-        return {}
     

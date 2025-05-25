@@ -16,7 +16,7 @@ from client.front.logic.back_listener import sess_state
 
 
 def gui_loop(session_id, rc_input, controller):
-    global telemetry_data
+    time.sleep(0.2)
 
     try:
         # === Initialize pygame ===
@@ -122,6 +122,7 @@ def gui_loop(session_id, rc_input, controller):
 
     sock.close()
     tlmt_sock.close()
+
 
     cap.release()
 

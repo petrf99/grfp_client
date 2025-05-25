@@ -11,12 +11,18 @@ def connect_job(session_id, auth_token, tag):
     if not start_tailscale(session_id, auth_token, tag):
         return False
     
+    send_message_to_front("Tailscale started")
+    
     ips = wait_for_tailscale_ips(session_id, auth_token)
     if not ips:
         send_message_to_front("abort")
         return disconnect()
     
+    send_message_to_front("Tailscale IP of GCS retrieved")
+    
     run_client_server()
+
+    send_message_to_front("TCP server is run")
     
     sess_state.gcs_ip = ips[0]
 
@@ -24,6 +30,7 @@ def connect_job(session_id, auth_token, tag):
         send_message_to_front('abort')
         return disconnect()
     
+    send_message_to_front("All set")
     send_message_to_front("connected")
     return True
     
