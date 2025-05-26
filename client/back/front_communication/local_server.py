@@ -5,6 +5,7 @@ import uuid
 
 from client.back.config import CLIENT_BACK_SERV_PORT
 from client.back.front_communication.front_msg_sender import send_message_to_front
+from client.back.session_manager.state import sess_state
 
 from tech_utils.logger import init_logger
 logger = init_logger("Back_LocServ")
@@ -124,7 +125,6 @@ def launch_streams():
         return jsonify({"status": "error", "reason": "Error while launching RC-input stream or keeping connection with GCS"}), 500
     return jsonify({"status": "ok"}), 200
 
-from client.back.session_manager.state import sess_state
 from client.back.session_manager.basic_commands import close
 
 @back_app.route("/close-session", methods=["POST"])
