@@ -8,16 +8,16 @@ logger = init_logger("Back_RC_Streamer")
 
 from client.back.config import BACKEND_CONTROLLER, GCS_RC_RECV_PORT, RC_CHANNELS_DEFAULTS, UDP_SEND_LOG_DELAY
 from tech_utils.udp import get_socket
-from client.back.session_manager.state import sess_state
+from client.back.state import client_state
 from client.back.front_communication.front_msg_sender import send_message_to_front
 
-def stream_rc_to_gcs(session_id, controller, gcs_ip):
+def stream_rc_to_gcs():
 
     send_message_to_front("📡 Starting RC-input streamer...")
     logger.info("Starting RC-input streamer")
     front_rc_flg = False
     sock = None
-    if controller not in BACKEND_CONTROLLER:
+    if client_state.controller not in BACKEND_CONTROLLER:
         logger.info("Assigned to restream RC from Front")
         front_rc_flg = True
         sock = get_socket("0.0.0.0", GCS_RC_RECV_PORT, bind=True)
@@ -27,13 +27,13 @@ def stream_rc_to_gcs(session_id, controller, gcs_ip):
     
     last_inp_log_time = 0
     try:
-        while not sess_state.finish_event.is_set() and not sess_state.abort_event.is_set():
+        while not client_state.finish_event.is_set() and not client_state.abort_event.is_set():
             cur_time = time.time()
             try:
                 rc_frame = {
                             "timestamp": cur_time,
-                            "session_id": session_id,
-                            "source": controller,
+                            "session_id": client_state.session_id,
+                            "source": client_state.controller,
                         }
                 if front_rc_flg:
                     data, addr = sock.recvfrom(65536)
@@ -43,10 +43,10 @@ def stream_rc_to_gcs(session_id, controller, gcs_ip):
                         
                 
                 json_data = json.dumps(rc_frame).encode('utf-8')
-                sock.sendto(json_data, (gcs_ip, GCS_RC_RECV_PORT))
+                sock.sendto(json_data, (client_state.gcs_ip, client_state.gcs_rc_port))
 
                 if cur_time - last_inp_log_time >= UDP_SEND_LOG_DELAY:
-                    logger.info(f"RC-input {json_data} sent to GCS on {gcs_ip}:{GCS_RC_RECV_PORT}")
+                    logger.info(f"RC-input {json_data} sent to GCS on {client_state.gcs_ip}:{client_state.gcs_rc_port}")
                     last_inp_log_time = cur_time
             except socket.timeout:
                 continue

@@ -1,0 +1,61 @@
+import requests
+import time
+import os
+from tech_utils.tailscale import tailscale_down
+from client.back.config import GCS_TCP_PORT, ABORT_MSG, FINISH_MSG, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
+from client.back.gcs_communication.tailscale_connect import delete_vpn_connection
+from client.back.state import client_state
+from client.back.front_communication.front_msg_sender import send_message_to_front
+
+from tech_utils.logger import init_logger
+logger = init_logger("Back_BasicCmds")
+
+def local_close_sess(finish_flg = False):
+    send_message_to_front("Closing session...")
+    status = ABORT_MSG
+    if finish_flg:
+        status = FINISH_MSG
+        
+    try:
+        if not client_state.external_stop_event.is_set():
+            url = f"http://{client_state.gcs_ip}:{GCS_TCP_PORT}/send-message"
+            payload = {
+                "session_id": client_state.session_id,
+                "message": f"{status}-session"
+            }
+            send_message_to_front(f"📡 Sending {status}-session to GCS at {client_state.gcs_ip}...")
+            try:
+                res = requests.post(url, json=payload, timeout=5)
+                if res.status_code == 200:
+                    send_message_to_front(f"Message {status}-session successfully sent to GCS.")
+                    logger.info(f"{client_state} {status} message sent to GCS")
+            except Exception as e:
+                send_message_to_front(f"Something went wront. Terminating session forcedly...")
+                logger.error(f"{client_state} Can't send {status} message to GCS. Exception: {e}. Terminating forcedly.")
+    except Exception as e:
+        logger.error(f"Can't send {status}-session message to GCS: {e}")
+
+    time.sleep(0.5)
+    delete_vpn_connection()
+    client_state.clear()
+
+    return True
+
+from tech_utils.tailscale import tailscale_down
+def disconnect():
+    tailscale_down()
+    send_message_to_front("ts-disconnected: 👌 Tailscale disconnected")
+
+    if os.path.exists(RSA_PRIVATE_PEM_PATH):
+        os.remove(RSA_PRIVATE_PEM_PATH)
+        logger.info(f"Private key {RSA_PRIVATE_PEM_PATH} deleted.")
+    else:
+        logger.warning(f"Private key {RSA_PRIVATE_PEM_PATH} not found — nothing to delete.")
+
+    if os.path.exists(RSA_PUBLIC_PEM_PATH):
+        os.remove(RSA_PUBLIC_PEM_PATH)
+        logger.info(f"Private key {RSA_PUBLIC_PEM_PATH} deleted.")
+    else:
+        logger.warning(f"Private key {RSA_PUBLIC_PEM_PATH} not found — nothing to delete.")
+    
+    return True

@@ -3,21 +3,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# === Настройки ===
+# === RFD connection params ===
 RFD_IP = os.getenv("RFD_IP")       # адрес сервера RFD
 RFD_SM_PORT = int(os.getenv("RFD_SM_PORT"))           
-TOKEN_VAL_METHOD = os.getenv("TOKEN_VAL_METHOD")
+
+RSA_PRIVATE_PEM_PATH="client_private_rsa_key.pem"
+RSA_PUBLIC_PEM_PATH="client_public_rsa_key.pem"
+
+ABORT_MSG = "abort"
+FINISH_MSG = "finish"
 
 # === Tailscale connect to gcs ===
-TAILSCALE_IP_POLL_INTERVAL = 3
-TAILSCAPE_IP_TIMEOUT = 600
 GCS_TCP_PORT = int(os.getenv("GCS_TCP_PORT"))
 CLIENT_TCP_PORT = int(os.getenv("CLIENT_TCP_PORT"))
-NUM_START_SESS_ATTEMPTS=150
-START_SESS_POLL_INTERVAL=2
 
 TCP_KEEP_CONNECTION_RETRIES=3
 PING_INTERVAL=1
+
+START_SESS_POLL_INTERVAL=2
+NUM_START_SESS_ATTEMPTS=150
 
 # === UDP GCS-Client params ===
 CLIENT_VID_RECV_PORT=int(os.getenv("CLIENT_VID_RECV_PORT"))
@@ -46,8 +50,10 @@ RC_CHANNELS_DEFAULTS = {
 }
 
 # Controllers list
-CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'drone_radio']
-BACKEND_CONTROLLER = ['gamepad', 'drone_radio']
+CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'rc_controller']
+BACKEND_CONTROLLER = ['gamepad', 'rc_controller']
+DEFAULT_CONTROLLER = 'keyboard'
+CONTROLLER_PATH="client/settings/controller.txt"
 
 # Local ports
-CLIENT_BACK_SERV_PORT=int(os.getenv("CLIENT_BACK_SERV_PORT"))
+BACK_SERV_PORT=int(os.getenv("BACK_SERV_PORT"))

@@ -19,14 +19,14 @@ def get_video_cap(n_attempts):
         return False
     
 import socket
-from client.front.logic.back_listener import sess_state
 
 telemetry_data = {}
 
 def get_telemetry(tlmt_sock):
+    from client.front.state import front_state
     global telemetry_data
     try:
-        while not sess_state.finish_event.is_set() and not sess_state.abort_event.is_set():
+        while not front_state.finish_event.is_set() and not front_state.abort_event.is_set():
             try:
                 data, addr = tlmt_sock.recvfrom(65536)
                 telemetry_data.clear()

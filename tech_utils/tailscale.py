@@ -357,6 +357,42 @@ def tailscale_down():
             print("⚠️ tailscaled was not running or could not be stopped.")
 
 
+# === Get IP function ===
+import json
+
+def get_tailscale_ip_by_hostname(hostname):
+    try:
+        ts_path = get_tailscale_path()
+        result = subprocess.run(
+            [ts_path, "status", "--json"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        data = json.loads(result.stdout)
+        
+        for peer in data.get("Peer", {}).values():
+            if peer.get("Name", "").split(".")[0] == hostname:
+                # Возвращаем первый найденный IP-адрес
+                ips = peer.get("TailscaleIPs", [])
+                logger.info(f"Retrieved IPs {ips} for hostname {hostname}")
+                return ips[0] if ips else None
+        
+        return None  # Не найден
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"[!] Error executing tailscale: {e}")
+    except json.JSONDecodeError as e:
+        logger.error(f"[!] Failed to parse tailscale JSON output: {e}")
+    except Exception as e:
+        logger.error(f"[!] Unexpected error: {e}")
+
+    return None
+
+
+
+
 if __name__ == '__main__':
     tailscale_up('test-client', os.getenv("TEST_CLIENT_AUTH_KEY"))
     tailscale_down()

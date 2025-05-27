@@ -7,15 +7,28 @@ import cv2
 from tech_utils.logger import init_logger
 logger = init_logger("Front_GUI")
 
-from client.front.config import FREQUENCY, RC_CHANNELS_DEFAULTS, TELEMETRY_GUI_DRAW_FIELDS, NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT
+from client.front.config import FREQUENCY, RC_CHANNELS_DEFAULTS, TELEMETRY_GUI_DRAW_FIELDS, NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT, CONTROLLER_PATH, CONTROLLERS_LIST, BACKEND_CONTROLLER
 
 from client.front.logic.data_listeners import get_video_cap, get_telemetry, telemetry_data
 from client.front.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame_QUIT
 from client.front.logic.back_sender import send_rc_frame
-from client.front.logic.back_listener import sess_state
+from client.front.inputs import get_rc_input
 
 
-def gui_loop(session_id, rc_input, controller):
+def gui_loop(state):
+    session_id = state.session_id
+
+    with open(CONTROLLER_PATH, "r") as f:
+        text = f.read()
+        if text in CONTROLLERS_LIST:
+            controller = text.strip()
+    
+    if controller not in BACKEND_CONTROLLER:
+        rc_input = get_rc_input(controller)
+    else:
+        rc_input = None
+    
+
     time.sleep(0.2)
 
     try:
@@ -35,20 +48,23 @@ def gui_loop(session_id, rc_input, controller):
         threading.Thread(target=get_telemetry, args=(tlmt_sock,), daemon=True).start()
         
 
-        while not sess_state.finish_event.is_set() and not sess_state.abort_event.is_set():
+        while not state.finish_event.is_set() and not state.abort_event.is_set():
             clock.tick(FREQUENCY)
 
             # 🎮 Обработка событий
             for event in pygame_event_get():
                 if event.type == pygame_QUIT:
-                    sess_state.finish_event.set()
+                    state.finish_event.set()
                     break
-                rc_state = rc_input.process_event(event, rc_state)
+                if rc_input:
+                    rc_state = rc_input.process_event(event, rc_state)
 
-            if sess_state.finish_event.is_set():
+            if state.finish_event.is_set():
                 break
+            
+            if rc_input:
+                rc_state = rc_input.read_frame(rc_state)
 
-            rc_state = rc_input.read_frame(rc_state)
             send_rc_frame(sock, session_id, rc_state, controller)
 
             # 🎥 Получение кадра из видео
@@ -113,11 +129,11 @@ def gui_loop(session_id, rc_input, controller):
 
     except KeyboardInterrupt:
         logger.warning("User interrupted during gui_loop(). Aborting session.")
-        sess_state.abort_event.set()
+        state.abort_event.set()
         return False
     except Exception as e:
         logger.error(f"{session_id} GUI Loop Error: {e}")
-        sess_state.abort_event.set()
+        state.abort_event.set()
         return False
 
     sock.close()
@@ -128,4 +144,4 @@ def gui_loop(session_id, rc_input, controller):
 
     pygame_quit()
 
-    return sess_state.finish_event.is_set()
+    return state.finish_event.is_set()

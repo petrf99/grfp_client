@@ -47,7 +47,11 @@ SCREEN_HEIGHT = 720
 TELEMETRY_GUI_DRAW_FIELDS=["timestamp", "rc_channels"]
 NO_FRAME_MAX = 50
 
-# Local ports
-CLIENT_BACK_SERV_PORT=int(os.getenv("CLIENT_BACK_SERV_PORT"))
-
+# Local settings
+BACK_SERV_PORT=int(os.getenv("BACK_SERV_PORT"))
 BACK_POLLING_INTERVAL=0.5
+
+HELP_FILE_PATH="client/settings/help.txt"
+CONTROLLER_PATH="client/settings/controller.txt"
+
+BACKEND_CONTROLLER = ['gamepad', 'rc_controller']

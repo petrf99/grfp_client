@@ -2,14 +2,10 @@ import requests
 import time
 import threading
 
-from tech_utils.logger import init_logger
-logger = init_logger("Client_GCS_Connect")
-
 from client.back.front_communication.front_msg_sender import send_message_to_front
-
-from client.back.config import CLIENT_TCP_PORT, GCS_TCP_PORT, NUM_START_SESS_ATTEMPTS, START_SESS_POLL_INTERVAL,TCP_KEEP_CONNECTION_RETRIES, PING_INTERVAL
-
-from client.back.session_manager.state import sess_state
+from tech_utils.safe_post_req import post_request
+from client.back.config import CLIENT_TCP_PORT, GCS_TCP_PORT, NUM_START_SESS_ATTEMPTS, START_SESS_POLL_INTERVAL, PING_INTERVAL, TCP_KEEP_CONNECTION_RETRIES
+from client.back.state import client_state
 
 # === Client's Server Set-up
 from flask import Flask, request, jsonify
@@ -17,6 +13,9 @@ app = Flask(__name__)
 
 server = None  # ссылка на сервер
 from werkzeug.serving import make_server
+
+from tech_utils.logger import init_logger
+logger = init_logger("Client_GCS_Connect")
 
 def run_client_server():
     global server
@@ -64,84 +63,86 @@ def receive_message():
     logger.info(f"Message received on TCP Flask server: {data}")
     message = data.get("message", "")
     if message == 'abort-session':
-        sess_state.abort_event.set()
+        client_state.abort_event.set()
+        client_state.external_stop_event.set()
         send_message_to_front('abort')
-        sess_state.external_stop_event.set()
-    if message == 'finish-session':
+        return jsonify({"status": "ok"})
+    elif message == 'finish-session':
+        client_state.finish_event.set()
+        client_state.external_stop_event.set()
         send_message_to_front('finish')
-        sess_state.finish_event.set()
-        sess_state.external_stop_event.set()
-    if 'session' in message:
+        return jsonify({"status": "ok"})
+    elif message == "start-session":
+        client_state.session_id = data.get("session_id")
+        client_state.gcs_rc_port = data.get("gcs_rc_port")
+        client_state.gcs_ip = request.remote_addr
+        send_message_to_front(f"session-request. GCS IP: {client_state.gcs_ip}")
+        return jsonify({"status": "ok", "client_vid_port": client_state.client_vid_port, "client_tlmt_port": client_state.client_tlmt_port})
+    elif 'session' in message:
         return jsonify({"status": "ok"})
     else:
         return jsonify({"status": "error", "reason": "What?"}), 400
 
 
 
-def send_start_message_to_gcs(gcs_ip: str, session_id: str):
-    url = f"http://{gcs_ip}:{GCS_TCP_PORT}/send-message"
+def send_start_message_to_gcs():
+    logger.info(f"Starting handshake with GCS. {client_state}")
+    url = f"http://{client_state.gcs_ip}:{GCS_TCP_PORT}/send-message"
     payload = {
-        "session_id": session_id,
+        "session_id": client_state.session_id,
         "message": "start-session"
     }
-    send_message_to_front(f"📡 Sending start-session to GCS at {gcs_ip}...")
-    try:
-        for _ in range(NUM_START_SESS_ATTEMPTS):
-            try:
-                res = requests.post(url, json=payload, timeout=5)
-                if res.status_code == 200:
-                    send_message_to_front("✅ Handshake with GCS successful.")
-                    logger.info(f"{session_id} Handshake with GCS successfull")
-                    return True
-                else:
-                    logger.warning(f"{session_id} Handshake to GCS went wrong. Status_code: {res.status_code}")
-            except Exception as e:
-                logger.error(f"{session_id} Unsuccessfull handshake attempt with GCS. Exception: {e}. Retrying...")
+    send_message_to_front(f"📡 Sending start_session to GCS at {client_state.gcs_ip}...")
+    res = post_request(url=url, payload=payload, 
+                       description=f"GCS Handshake", 
+                       retries=NUM_START_SESS_ATTEMPTS, timeout=START_SESS_POLL_INTERVAL, 
+                       event_to_set=client_state.abort_event, 
+                       print_func=send_message_to_front, 
+                       message=f"📡 Waiting for a Handshake with GCS")
+    if res:
+        send_message_to_front(f"✅ Handshake with GCS for successful.")
+        logger.info(f"Handshake with GCS successfull {client_state}")
+        return True
 
-            send_message_to_front(f"Attempt {_+1}/{NUM_START_SESS_ATTEMPTS}: No reach. Retrying...")
-            time.sleep(START_SESS_POLL_INTERVAL)
-    except KeyboardInterrupt:
-        sess_state.abort_event.set()
-        logger.warning(f"{session_id} aborted by keyboard interrupt while sending handshake to GCS")
-
-    send_message_to_front("❌ Could not confirm handshake with GCS.")
-    logger.info(f"{session_id} Could not confirm handshake with GCS")
+    send_message_to_front(f"❌ Could not confirm handshake with GCS.")
+    logger.error(f"Could not confirm handshake with GCS {client_state}")
     return False
 
 
-def keep_connection(gcs_ip, session_id):
-    logger.info(f"Started keep-connection thread for session {session_id}")
-    url = f"http://{gcs_ip}:{GCS_TCP_PORT}/send-message"
+def keep_connection():
+    logger.info(f"Started keep-connection thread for session {client_state}")
+    url = f"http://{client_state.gcs_ip}:{GCS_TCP_PORT}/send-message"
     payload = {
-        "session_id": session_id,
+        "session_id": client_state.session_id,
         "message": "ping-session"
     }
 
     fails = 0
-    while not sess_state.finish_event.is_set() and not sess_state.bort_event.is_set():
+    while not client_state.finish_event.is_set() and not client_state.abort_event.is_set():
         try:
             res = requests.post(url, json=payload, timeout=5)
             if res.status_code == 200:
-                logger.info(f"{session_id} Ping to GCS successfull")
+                logger.info(f"{client_state} Ping to GCS successfull")
                 fails = 0
             else:
                 fails += 1
                 send_message_to_front("⚠️ Connection with GCS went wrong, retrying...")
-                logger.warning(f"{session_id} Ping to GCS went wrong. Status_code: {res.status_code}")
+                logger.warning(f"{client_state} Ping to GCS went wrong. Status_code: {res.status_code}")
         except Exception as e:
             fails += 1
             send_message_to_front("❌ Connection with GCS failed, retrying...")
-            logger.error(f"{session_id} Unsuccessfull handshake attempt with GCS. Exception: {e}. Retrying...")
+            logger.error(f"{client_state} Unsuccessfull handshake attempt with GCS. Exception: {e}. Retrying...")
 
         if fails >= TCP_KEEP_CONNECTION_RETRIES:
-            sess_state.abort_event.set()
+            client_state.abort_event.set()
             send_message_to_front("❌ GCS has disconnected. Please contact administrator.\nClosing the session...")
-            logger.error(f"{session_id} No TCP connection with GCS")
+            send_message_to_front("abort")
+            logger.error(f"{client_state} No TCP connection with GCS")
             break
 
         time.sleep(PING_INTERVAL)
     
-    logger.info(f"Finished keep-connection thread for session {session_id}")
+    logger.info(f"Finished keep-connection thread for session {client_state}")
 
 
 if __name__ == '__main__':

@@ -1,91 +1,162 @@
-import uuid 
-from tech_utils.logger import init_logger
-from client.front.config import CONTROLLERS_LIST
+from client.front.logic.back_listener import back_polling
+import threading
 
-from client.front.logic.back_sender import start_session, close_session, launch_streams, token_validator
+import re
+uuid4_regex = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+    re.IGNORECASE)
+
+from client.front.config import HELP_FILE_PATH, BACK_SERV_PORT
+BASE_URL = f"http://127.0.0.1:{BACK_SERV_PORT}"
+
+from tech_utils.cli_input import input_with_back
+from tech_utils.safe_post_req import post_request
 from client.front.gui.gui_loop import gui_loop
-from client.front.inputs import get_rc_input
 
-logger = init_logger("Front_Main")
+from tech_utils.logger import init_logger
+logger = init_logger("Front_Handlers")
 
-class FrontState:
-    def __init__(self):
-        self.session_id = None
-        self.start_flg = False
-        self.val_token_flg = False
-        self.sess_start_flg = False
-        self.contr_sel_flg = False
-        self.ready_flg = False
-        self.controller = None
-        self.rc_input = None
-
-    def clear(self):
-        self.__init__()
-
-state = FrontState()
-
-
-def handle_token_input(state, cmd):
-    session_id = token_validator(cmd)
+# Free input mode
+def step_free_input(state):
+    logger.info("Free input step")
+    print("\nFree input: type 'connect'/'disconnect' to connect on Tailnet or just wait till your GCS offers you a session")
     try:
-        uuid.UUID(session_id)
-        state.session_id = session_id
-        state.val_token_flg = True
-        logger.info(f"Token validated successfully: {session_id}")
-        print("Token verification succeeded.")
-        return True
-    except:
-        logger.warning("Token validation failed.")
-        print("Token validation failed.")
-        state.session_id = None
-        return False
+        while True:
+            cmd = input()
+            if cmd is None:
+                continue
+            
+            logger.info(f"{cmd} command received")
 
-from client.front.logic.back_listener import sess_state
-def handle_session_start(state):
-    state.sess_start_flg = start_session(state.session_id)
-    if state.sess_start_flg:
-        print("Session is being started. Please wait.\nYou may be asked to enter password in order to run Tailscale")
-        sess_state.connected_event.wait()
-        logger.info(f"Session {state.session_id} started.")
-        return True
-    else:
-        print("Unable to start session.")
-        logger.error("Session start failed.")
-        close_session(state.session_id)
-        state.reset()
-        print("Session stopped. You can start a new one by typing 'start'")
-        return False
+            if cmd == "help":
+                try:
+                    with open(HELP_FILE_PATH, "r") as f:
+                        print(f.read())
+                except:
+                    print("\nError")
+                    continue
 
+            elif cmd == 'disconnect':
+                if state.tailscale_connected_event.is_set():
+                    res = post_request(url = f"{BASE_URL}/front-disconnect", payload={}, description="Front2Back: Disconnect")
+                    if res:
+                        print("\nPlease wait until Tailscale disconnects")
+                        while state.tailscale_connected_event.is_set():
+                            pass
+                    else:
+                        print("\nUnable to disconnect properly")
 
-def handle_controller_selection(state, cmd):
+                else:
+                    print("You aren't connected")
+                continue
+            
+            elif cmd == 'connect':
+                return "mission_id_input"
+
+            elif cmd in ['exit', 'leave']:
+                return "done"
+            
+            elif cmd == "launch":
+                res = post_request(url = f"{BASE_URL}/front-launch-session", payload={},
+                                    description=f"Front2Back: Launch session")
+                
+                if res:
+                    result = 'finish' if gui_loop(state) else 'abort'
+                    post_request(url = f"{BASE_URL}/front-close-session", payload={"result": result},
+                                    description=f"Front2Back: {result} session")
+                    return "done"
+                else:
+                    print(f"\nCan't execute {cmd}")
+                continue
+            
+            elif cmd == "finish" or cmd == "abort":
+                result = cmd.split()[0]
+                if cmd == 'finish':
+                    state.finish_event.set()
+                else:
+                    state.abort_event.set()
+
+                res = post_request(url = f"{BASE_URL}/front-close-session", payload={"result": result},
+                                    description=f"Front2Back: {result} session")
+                
+                state.clear()
+
+                if res:
+                    print(f"\n{cmd} executed successfully")
+                else:
+                    print(f"\nCan't execute {cmd}")
+                return "free_input"
+
+            else:
+                print("Unknown command")
+                continue
+                
+    except KeyboardInterrupt:
+        logger.warning("Free input state interrupted by keyboard")
+        return "done"
+    
+
+# Step 1
+def step_greeting(state):
+    logger.info("Greeting step")
+    print("\nWelcome to the Remote Flights Platform Client.")
+
+    bp = threading.Thread(target=back_polling, daemon=True)
+    state.poll_back_event.set()
+    bp.start()
+
     try:
-        controller = CONTROLLERS_LIST[int(cmd) - 1]
-    except:
-        controller = None
+        while True:
+            cmd = input("Type 'start' to begin: ").strip().lower()
+            if cmd == "start":
+                return "free_input"
+            elif cmd == "help":
+                try:
+                    with open(HELP_FILE_PATH, "r") as f:
+                        print(f.read())
+                except:
+                    print("Error")
+                    continue
+            elif cmd in ['exit', 'leave']:
+                return "done"
 
-    if controller:
-        state.controller = controller
-        state.rc_input = get_rc_input(controller)
-        logger.info(f"Controller selected: {controller}")
-        print("Controller registered. Type 'ready' to start your flight or 'abort'.")
-        state.ready_flg = True
-        return True
+            print("Unknown command. Please type 'start'.")
+    except KeyboardInterrupt:
+        return "done"
+
+
+# Done
+def step_done(state):
+    state.poll_back_event.clear()
+    if state.tailscale_connected_event.is_set():
+        res = post_request(url = f"{BASE_URL}/front-disconnect", payload={}, description="Front2Back: Disconnect")
+        if res:
+            print("Disconnect succeeded.")
+        else:
+            print("Unable to disconnect properly")
+    post_request(url = f"{BASE_URL}/shutdown", 
+                                   payload={},
+                                 description=f"Front2Back: shutdown")
+    print("\nExiting RFP Client CLI. Goodbye!")
+    return None
+
+
+def step_mission_id_input(state):
+    print("\nPlease enter your mission identifier (UUID) (or type 'cancel')")
+    cmd = input_with_back()
+
+    if cmd is None or cmd == 'cancel':
+        return "free_input"
+    
+    if bool(uuid4_regex.match(cmd)):
+        res = post_request(url=f"{BASE_URL}/front-connect",
+                           payload={"mission_id":cmd}, 
+                           description=f"Front2Back: Connect with mission {cmd}")
+        print("Please wait until Tailscale connects")
+        state.tailscale_connected_event.wait()
+        return "free_input"
+    
     else:
-        print(f"Invalid controller. Please enter a number 1-{len(CONTROLLERS_LIST)}.")
-        return False
+        print("\nUnknown command")
+        return "mission_id_input"
 
-
-def launch_session(state):
-    finish_flg = False
-    if not launch_streams(state.session_id, state.controller):
-        print("Failed streams launch")
-    else:
-        logger.info("Streams launched. Starting GUI loop...")
-        finish_flg = gui_loop(state.session_id, state.rc_input, state.controller)
-        logger.info(f"Session completed and stopped with finish_flg {finish_flg}.")
-    if not sess_state.external_stop_event.is_set():
-        print("Flight session stopped.")
-    close_session(state.session_id, finish_flg=finish_flg)
-    state.clear()
-    sess_state.clear()
-    return finish_flg
