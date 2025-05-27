@@ -4,7 +4,7 @@ logger = init_logger("Back_Main")
 from client.back.front_communication.local_server import run_back_server, shutdown_back_server
 from client.back.gcs_communication.tcp_communication import run_client_server
 from client.back.state import client_state
-
+import time
 
 def main():
     logger.info("Starting Back")
@@ -12,7 +12,7 @@ def main():
         run_back_server()
         run_client_server()
         while client_state.running.is_set():
-            pass
+            time.sleep(1)
         logger.info("Stopping Back")
         return 0
     except KeyboardInterrupt:

@@ -47,9 +47,10 @@ def gui_loop(state):
 
         threading.Thread(target=get_telemetry, args=(tlmt_sock,), daemon=True).start()
         
-
+        no_frame_counter = 0
         while not state.finish_event.is_set() and not state.abort_event.is_set():
             clock.tick(FREQUENCY)
+            #print("FPS:", round(clock.get_fps(), 2))
 
             # 🎮 Обработка событий
             for event in pygame_event_get():
@@ -68,7 +69,9 @@ def gui_loop(state):
             send_rc_frame(sock, session_id, rc_state, controller)
 
             # 🎥 Получение кадра из видео
+            #start = time.time()
             ret, frame = cap.read()
+            #print("Video read time:", time.time() - start)
             if ret:
                 no_frame_counter = 0
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

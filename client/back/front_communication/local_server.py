@@ -22,6 +22,7 @@ def run_back_server():
     logger.info("Starting back local server")
     global back_server
     back_server = make_server("127.0.0.1", BACK_SERV_PORT, back_app)
+    
     thread = threading.Thread(target=back_server.serve_forever)
     thread.start()
     client_state.running.set()
@@ -128,3 +129,7 @@ def get_message():
         return jsonify({"status": "ok", "message": msg}), 200
     else:
         return jsonify({"status": "error", "reason": "No messages yet"}), 400
+    
+
+if __name__ == '__main__':
+    run_back_server()

@@ -20,6 +20,7 @@ logger = init_logger("Client_GCS_Connect")
 def run_client_server():
     global server
     server = make_server("0.0.0.0", CLIENT_TCP_PORT, app)
+    
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
     logger.info("Flask server started")
@@ -76,7 +77,7 @@ def receive_message():
         client_state.session_id = data.get("session_id")
         client_state.gcs_rc_port = data.get("gcs_rc_port")
         client_state.gcs_ip = request.remote_addr
-        send_message_to_front(f"session-request. GCS IP: {client_state.gcs_ip}")
+        send_message_to_front(f"session-request. GCS IP: {client_state.gcs_ip}. Session_id: {client_state.session_id}")
         return jsonify({"status": "ok", "client_vid_port": client_state.client_vid_port, "client_tlmt_port": client_state.client_tlmt_port})
     elif 'session' in message:
         return jsonify({"status": "ok"})

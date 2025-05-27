@@ -54,6 +54,6 @@ def back_polling():
                     print(message)
 
         except Exception as e:
-            pass
+            time.sleep(2)
 
         time.sleep(BACK_POLLING_INTERVAL)

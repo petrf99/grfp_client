@@ -1,5 +1,6 @@
 from client.front.logic.back_listener import back_polling
 import threading
+import time
 
 import re
 uuid4_regex = re.compile(
@@ -42,6 +43,7 @@ def step_free_input(state):
                     if res:
                         print("\nPlease wait until Tailscale disconnects")
                         while state.tailscale_connected_event.is_set():
+                            time.sleep(1)
                             pass
                     else:
                         print("\nUnable to disconnect properly")
@@ -129,11 +131,13 @@ def step_greeting(state):
 def step_done(state):
     state.poll_back_event.clear()
     if state.tailscale_connected_event.is_set():
+        time.sleep(1)
         res = post_request(url = f"{BASE_URL}/front-disconnect", payload={}, description="Front2Back: Disconnect")
         if res:
             print("Disconnect succeeded.")
         else:
             print("Unable to disconnect properly")
+    time.sleep(1)
     post_request(url = f"{BASE_URL}/shutdown", 
                                    payload={},
                                  description=f"Front2Back: shutdown")
