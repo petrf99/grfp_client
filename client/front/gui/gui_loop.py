@@ -77,6 +77,7 @@ def gui_loop(state):
             #start = time.time()
             raw_frame = cap.stdout.read(frame_size)
             if len(raw_frame) != frame_size:
+                logger.warning("⚠️ Invalid frame size")
                 continue
 
             frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))

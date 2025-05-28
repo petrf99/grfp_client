@@ -40,7 +40,7 @@ def get_video_cap(n_attempts):
     ]
 
 
-    return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
+    return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
 
 telemetry_data = {}
 
