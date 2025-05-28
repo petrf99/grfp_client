@@ -23,5 +23,8 @@ class FrontState:
         self.abort_event.clear()
         self.finish_event.clear()
 
+    def status(self):
+        return f"Session ID: {self.session_id}\nVPN Connected: {self.tailscale_connected_event.is_set()}"
+
 
 front_state = FrontState()

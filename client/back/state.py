@@ -36,7 +36,7 @@ class SessionState:
                 f.write(DEFAULT_CONTROLLER)
                 self.controller = DEFAULT_CONTROLLER
 
-        self.running = threading.Event()
+        self.stop_back_event = threading.Event()
 
     def __str__(self):
         return f"Session: {self.session_id}. Mission: {self.mission_id}"

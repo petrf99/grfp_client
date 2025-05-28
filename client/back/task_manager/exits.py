@@ -36,8 +36,11 @@ def local_close_sess(finish_flg = False):
         logger.error(f"Can't send {status}-session message to GCS: {e}")
 
     time.sleep(0.5)
-    delete_vpn_connection()
+    if client_state.token:
+        delete_vpn_connection()
     client_state.clear()
+    
+    send_message_to_front(f"Session closed")
 
     return True
 

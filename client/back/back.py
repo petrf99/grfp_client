@@ -11,8 +11,7 @@ def main():
     try:
         run_back_server()
         run_client_server()
-        while client_state.running.is_set():
-            time.sleep(1)
+        client_state.stop_back_event.wait()
         logger.info("Stopping Back")
         return 0
     except KeyboardInterrupt:

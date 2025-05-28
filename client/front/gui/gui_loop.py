@@ -73,6 +73,7 @@ def gui_loop(state):
             ret, frame = cap.read()
             #print("Video read time:", time.time() - start)
             if ret:
+                time.sleep(1 / 30) 
                 no_frame_counter = 0
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = np.flip(frame, axis=0)

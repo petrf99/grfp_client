@@ -37,6 +37,10 @@ def step_free_input(state):
                     print("\nError")
                     continue
 
+            elif cmd == 'status':
+                print(state.status())
+                continue
+
             elif cmd == 'disconnect':
                 if state.tailscale_connected_event.is_set():
                     res = post_request(url = f"{BASE_URL}/front-disconnect", payload={}, description="Front2Back: Disconnect")

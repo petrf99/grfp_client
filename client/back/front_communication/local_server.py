@@ -25,7 +25,6 @@ def run_back_server():
     
     thread = threading.Thread(target=back_server.serve_forever)
     thread.start()
-    client_state.running.set()
     logger.info("Back local server started")
 
 
@@ -59,7 +58,7 @@ def shutdown():
     logger.info("Shutdown requested via /shutdown")
     shutdown_thread = threading.Thread(target=back_server.shutdown)
     shutdown_thread.start()
-    client_state.running.clear()
+    client_state.stop_back_event.set()
     return jsonify({"status": "ok", "message": "Server shutting down..."})
 
 
