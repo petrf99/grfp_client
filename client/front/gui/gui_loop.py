@@ -9,7 +9,7 @@ logger = init_logger("Front_GUI")
 
 from client.front.config import SCREEN_HEIGHT, SCREEN_WIDTH, FREQUENCY, RC_CHANNELS_DEFAULTS, TELEMETRY_GUI_DRAW_FIELDS, NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT, CONTROLLER_PATH, CONTROLLERS_LIST, BACKEND_CONTROLLER
 
-from client.front.logic.data_listeners import get_video_cap, get_telemetry, telemetry_data
+from client.front.logic.data_listeners import get_video_resolution, get_video_cap, get_telemetry, telemetry_data
 from client.front.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame_QUIT
 from client.front.logic.back_sender import send_rc_frame
 from client.front.inputs import get_rc_input
@@ -28,8 +28,9 @@ def gui_loop(state):
     else:
         rc_input = None
     
-    width, height = SCREEN_WIDTH, SCREEN_HEIGHT
+    width, height = get_video_resolution()
     frame_size = width * height * 3
+
 
     time.sleep(0.2)
 
@@ -50,8 +51,9 @@ def gui_loop(state):
         threading.Thread(target=get_telemetry, args=(tlmt_sock,), daemon=True).start()
         
         no_frame_counter = 0
+
+        logger.info("GUI loop starting")
         while not state.finish_event.is_set() and not state.abort_event.is_set():
-            logger.info("GUI loop starting")
             clock.tick(FREQUENCY)
             #print("FPS:", round(clock.get_fps(), 2))
 

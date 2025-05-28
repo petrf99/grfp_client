@@ -8,6 +8,23 @@ logger = init_logger("Front_UDP_Listeners")
 
 from client.front.config import CLIENT_VID_RECV_PORT
 
+def get_video_resolution():
+    cmd = [
+        "ffprobe",
+        "-v", "error",  # выводим только ошибки
+        "-select_streams", "v:0",  # выбираем первый видеопоток
+        "-show_entries", "stream=width,height",  # запрашиваем ширину и высоту
+        "-of", "json",  # формат вывода — JSON
+        f"udp://@:{CLIENT_VID_RECV_PORT}"  # источник — UDP поток на указанном порту
+    ]
+
+    out = subprocess.run(cmd, capture_output=True)
+    info = json.loads(out.stdout)
+    w = info['streams'][0]['width']
+    h = info['streams'][0]['height']
+    return w, h
+
+
 # 🎥 Подключение к локальному видео-порту
 def get_video_cap(n_attempts):
     ffmpeg_recv_cmd = [
