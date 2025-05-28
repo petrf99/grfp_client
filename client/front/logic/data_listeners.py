@@ -1,6 +1,7 @@
-import cv2
+import subprocess
 import json
 import time
+import socket
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_UDP_Listeners")
@@ -9,16 +10,20 @@ from client.front.config import CLIENT_VID_RECV_PORT
 
 # 🎥 Подключение к локальному видео-порту
 def get_video_cap(n_attempts):
-    for _ in range(n_attempts):
-        cap = cv2.VideoCapture(f"udp://@:{CLIENT_VID_RECV_PORT}?fifo_size=5000000&overrun_nonfatal=1")
-        if cap.isOpened():
-            return cap
-        time.sleep(0.1)
-    else:
-        logger.error("Failed to open video stream after retries")
-        return False
-    
-import socket
+    ffmpeg_recv_cmd = [
+        "ffmpeg",
+        "-fflags", "+discardcorrupt",
+        "-flags", "low_delay",
+        "-probesize", "500000",
+        "-analyzeduration", "1000000",
+        "-i", f"udp://@:{CLIENT_VID_RECV_PORT}?fifo_size=1000000&overrun_nonfatal=1",
+        "-f", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-"
+    ]
+
+
+    return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
 
 telemetry_data = {}
 

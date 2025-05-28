@@ -2,12 +2,12 @@ import numpy as np
 import pygame
 import time
 import threading
-import cv2
+import subprocess
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_GUI")
 
-from client.front.config import FREQUENCY, RC_CHANNELS_DEFAULTS, TELEMETRY_GUI_DRAW_FIELDS, NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT, CONTROLLER_PATH, CONTROLLERS_LIST, BACKEND_CONTROLLER
+from client.front.config import SCREEN_HEIGHT, SCREEN_WIDTH, FREQUENCY, RC_CHANNELS_DEFAULTS, TELEMETRY_GUI_DRAW_FIELDS, NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT, CONTROLLER_PATH, CONTROLLERS_LIST, BACKEND_CONTROLLER
 
 from client.front.logic.data_listeners import get_video_cap, get_telemetry, telemetry_data
 from client.front.gui.pygame import pygame_init, pygame_event_get, pygame_quit, pygame_QUIT
@@ -28,6 +28,8 @@ def gui_loop(state):
     else:
         rc_input = None
     
+    width, height = SCREEN_WIDTH, SCREEN_HEIGHT
+    frame_size = width * height * 3
 
     time.sleep(0.2)
 
@@ -49,6 +51,7 @@ def gui_loop(state):
         
         no_frame_counter = 0
         while not state.finish_event.is_set() and not state.abort_event.is_set():
+            logger.info("GUI loop starting")
             clock.tick(FREQUENCY)
             #print("FPS:", round(clock.get_fps(), 2))
 
@@ -70,12 +73,14 @@ def gui_loop(state):
 
             # 🎥 Получение кадра из видео
             #start = time.time()
-            ret, frame = cap.read()
+            raw_frame = cap.stdout.read(frame_size)
+            if len(raw_frame) != frame_size:
+                continue
+
+            frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
             #print("Video read time:", time.time() - start)
-            if ret:
-                time.sleep(1 / 30) 
+            if frame is not None and frame.size != 0:
                 no_frame_counter = 0
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = np.flip(frame, axis=0)
                 frame = np.rot90(frame, k=-1)  # Повернуть на 90° по часовой
                 surface = pygame.surfarray.make_surface(frame)
@@ -84,7 +89,9 @@ def gui_loop(state):
                 no_frame_counter += 1
                 if no_frame_counter >= NO_FRAME_MAX:
                     logger.warning("🔁 Reinitializing video stream...")
-                    cap.release()
+                    if cap and hasattr(cap, "kill"):
+                        cap.kill()
+
                     cap = get_video_cap(30)
                     no_frame_counter = 0
                 else:
@@ -144,7 +151,12 @@ def gui_loop(state):
     tlmt_sock.close()
 
 
-    cap.release()
+    cap.terminate()
+    try:
+        cap.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        cap.kill()
+
 
     pygame_quit()
 
