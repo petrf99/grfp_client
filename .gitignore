@@ -6,3 +6,4 @@ logs/
 *token*.txt
 *.ts
 *.pem
+tech_utils/
