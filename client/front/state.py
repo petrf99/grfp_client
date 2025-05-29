@@ -13,6 +13,7 @@ class FrontState:
     def __init__(self):
         self.session_id = None
         self.tailscale_connected_event = threading.Event()
+        self.tailscale_disconnect_event = threading.Event()
         self.poll_back_event = threading.Event()
 
         self.abort_event = threading.Event()

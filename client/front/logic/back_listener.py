@@ -72,11 +72,11 @@ def back_polling():
 
                 elif message.startswith("ts-connected"):
                     front_state.tailscale_connected_event.set()
+                    front_state.tailscale_disconnect_event.clear()
                     print(" ".join(message.split(" ")[1:]))
 
                 elif message.startswith("ts-disconnected"):
-                    front_state.tailscale_connected_event.set()
-                    time.sleep(0.01)
+                    front_state.tailscale_disconnect_event.set()
                     front_state.tailscale_connected_event.clear()
                     print(" ".join(message.split(" ")[1:]))
 

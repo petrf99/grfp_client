@@ -75,8 +75,7 @@ def step_free_input(state):
                     res = post_request(f"{BASE_URL}/front-disconnect", {}, "Front2Back: Disconnect")
                     if res:
                         print("\nWaiting for Tailscale to disconnect...")
-                        while state.tailscale_connected_event.is_set():
-                            time.sleep(1)
+                        state.tailscale_disconnect_event.wait()
                     else:
                         print("\nFailed to disconnect")
                 else:
@@ -143,13 +142,15 @@ def step_mission_id_input(state):
 
 # === Step: Exit and shutdown ===
 def step_done(state):
-    state.poll_back_event.clear()
     if state.tailscale_connected_event.is_set():
         time.sleep(1)
         res = post_request(f"{BASE_URL}/front-disconnect", {}, "Front2Back: Disconnect")
-        print("Disconnect succeeded." if res else "Unable to disconnect properly.")
-
-    time.sleep(1)
+        if res:
+            state.tailscale_disconnect_event.wait()
+            print("Disconnect succeeded.")
+        else:
+            print("Unable to disconnect properly.")
+    state.poll_back_event.clear()
     post_request(f"{BASE_URL}/shutdown", {}, "Front2Back: shutdown")
 
     print("\nExiting RFP Client CLI. Goodbye!")
