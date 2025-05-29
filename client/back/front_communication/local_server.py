@@ -1,153 +1,129 @@
-from werkzeug.serving import make_server
 import threading
 import requests
-import uuid
 
-from client.back.config import CLIENT_BACK_SERV_PORT
-from client.back.front_communication.front_msg_sender import send_message_to_front
-from client.back.session_manager.state import sess_state
+from werkzeug.serving import make_server
+from flask import Flask, request, jsonify
+
+from client.back.config import BACK_SERV_PORT, CLIENT_TCP_PORT
+from client.back.front_communication.front_msg_sender import send_message_to_front, message_queue
+from client.back.gcs_communication.tailscale_connect import connect
+from client.back.state import client_state
+from client.back.task_manager.exits import disconnect, local_close_sess
+from client.back.task_manager.start_sess import start_session
 
 from tech_utils.logger import init_logger
 logger = init_logger("Back_LocServ")
 
-### === Server set up ===
 
-running = threading.Event()
-
-from flask import Flask, request, jsonify
+# === Flask App Initialization ===
 back_app = Flask(__name__)
-
 back_server = None
 
+
+# === Server Startup / Shutdown ===
 def run_back_server():
+    """
+    Start local Flask server to communicate with the frontend.
+    """
+    global back_server
     logger.info("Starting back local server")
-    global back_server, running
-    back_server = make_server("127.0.0.1", CLIENT_BACK_SERV_PORT, back_app)
+    back_server = make_server("127.0.0.1", BACK_SERV_PORT, back_app)
+
     thread = threading.Thread(target=back_server.serve_forever)
     thread.start()
-    running.set()
     logger.info("Back local server started")
 
 
-def shutdown_back_server():
-    send_message_to_front("Stopping TCP server...")
-    try:
-        res = requests.post(f"http://127.0.0.1:{CLIENT_BACK_SERV_PORT}/shutdown", timeout=3)
-        if res.ok:
-            logger.info("TCP server stopped")
-            send_message_to_front("🔌 TCP server stopped.")
-        return True
-    except requests.exceptions.ConnectionError:
-        logger.error("TCP server not running (already stopped)")
-        send_message_to_front("⚠️ TCP server not running (already stopped).")
-    except Exception as e:
-        logger.error(f"Failed to shutdown TCP server: {e}")
-        send_message_to_front(f"⚠️ Failed to shutdown TCP server: {e}")
-    return False
-
-### === Methods ====
-
+# === Routes ===
 @back_app.route("/shutdown", methods=["POST"])
 def shutdown():
-    global back_server, running
+    """
+    Route to shut down the Flask server and GCS client server.
+    """
+    from tech_utils.flask_server_utils import shutdown_server
+    if not shutdown_server("127.0.0.1", CLIENT_TCP_PORT, None, logger=logger):
+        send_message_to_front("Could not finish Client's server correctly.")
+    
+    global back_server
     if back_server is None:
         return jsonify({"status": "error", "reason": "Server not running"}), 400
 
     logger.info("Shutdown requested via /shutdown")
-    shutdown_thread = threading.Thread(target=back_server.shutdown)
-    shutdown_thread.start()
-    running.clear()
+    threading.Thread(target=back_server.shutdown).start()
+    client_state.stop_back_event.set()
     return jsonify({"status": "ok", "message": "Server shutting down..."})
 
 
-from client.back.config import RFD_IP, RFD_SM_PORT
-
-import hashlib
-def hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest().upper()
-
-RFD_URL = f"http://{RFD_IP}:{RFD_SM_PORT}/validate-token"
-
-@back_app.route("/validate-token", methods=["POST"])
-def validate_token():
-    global sess_state
+@back_app.route("/front-connect", methods=["POST"])
+def front_connect():
+    """
+    Initiates connection to Tailnet using mission_id from the frontend.
+    """
     data = request.get_json()
-    logger.info(f"validate-token command on Back server")
-    token = data.get("token", "")
-    if token and token != "":
-        try:
-            response = requests.post(RFD_URL, json={"token": hash_token(token)}, timeout=5)
-            data = response.json()
-            if response.status_code == 200:
-                if data.get("status") == "ok" and "session_id" in data:
-                    sess_state.auth_token = token
-                    logger.info(f"Token with hash {hash_token(token)} verified successully. Session-id:\n{data['session_id']}\n")
-                    return jsonify({"status": "ok", "session_id": data.get("session_id")}), 200
-            else:
-                logger.info(f"Token with hash {hash_token(token)} verification failed. Reason: {data.get('reason', '')}")
-                return jsonify({"status": "error", "reason": f"Token verification failed. Reason: {data.get('reason', '')}"}), 400
-        except Exception as e:
-            logger.error("Could not reach RFD\n")
-            return jsonify({"status": "error", "reason": "Can't reach RFD"}), 500
-        
-from client.back.session_manager.start_sess import connect
-
-@back_app.route("/start-session", methods=["POST"])
-def start_session():
-    global sess_state
-    data = request.get_json()
-    logger.info(f"start-session command on Back server: {data}")
-    session_id = data.get("session_id", "")
-    sess_state.session_id = session_id
-    try:
-        uuid.UUID(session_id)
-    except Exception as e:
-        return jsonify({"status": "error", "reason": "Incorrect session_id"}), 400
+    if "mission_id" not in data:
+        return jsonify({"status": "error", "reason": "Missing mission_id"}), 400
     
-
-    if connect(session_id, sess_state.auth_token, 'client'):
-        return jsonify({"status": "ok"}), 200
-    else:
-        return jsonify({"status": "error", "reason": "Can't start up a session on Back-end"}), 400
-    
-from client.back.session_manager.start_sess import launch_sess
-
-@back_app.route("/launch-streams", methods=["POST"])
-def launch_streams():
-    global sess_state
-    data = request.get_json()
-    logger.info(f"start-session command on Back server: {data}")
-    session_id = data.get("session_id", "")
-    sess_state.controller = data.get("controller", "")
-    if sess_state.session_id != session_id:
-        return jsonify({"status": "error", "reason": "Session_id on Back server doesn't match with yours"}), 400
-    if not launch_sess(session_id):
-        return jsonify({"status": "error", "reason": "Error while launching RC-input stream or keeping connection with GCS"}), 500
+    threading.Thread(target=connect, args=(data.get("mission_id"),), daemon=True).start()
     return jsonify({"status": "ok"}), 200
 
-from client.back.session_manager.basic_commands import close
 
-@back_app.route("/close-session", methods=["POST"])
-def close_session():
-    global sess_state
-    data = request.get_json()
-    logger.info(f"close-session command on Back server: {data}")
-    session_id = data.get("session_id", "")
-    if session_id == sess_state.session_id:
-        close(sess_state.gcs_ip, session_id, data.get("finish_flg"))
-        sess_state.clear()
-        return jsonify({"status": "ok"}), 200
-    else:
-        return jsonify({"status": "error", "reason": "Session_id on Back server doesn't match with yours"}), 400
+@back_app.route("/front-disconnect", methods=["POST"])
+def front_disconnect():
+    """
+    Triggers Tailscale disconnect and session cleanup.
+    """
+    threading.Thread(target=disconnect, daemon=True).start()
+    return jsonify({"status": "ok"}), 200
+
+
+@back_app.route("/front-launch-session", methods=["POST"])
+def front_launch_session():
+    """
+    Starts a new session if session ID is present in client state.
+    """
+    logger.info("start-session command on Back server")
+    if not client_state.session_id:
+        return jsonify({"status": "error", "reason": "No session to start"}), 400 
     
+    threading.Thread(target=start_session, daemon=True).start()
+    return jsonify({"status": "ok"}), 200
 
-from client.back.front_communication.front_msg_sender import message_queue
-from flask import Response
 
-@back_app.route("/get-message", methods=["GET"])
-def get_message():
-    if message_queue:
-        msg = message_queue.pop(0)  # достаём и удаляем первое сообщение
-        return Response(msg, status=200, mimetype="text/plain")
+@back_app.route("/front-close-session", methods=["POST"])
+def front_close_session():
+    """
+    Gracefully closes the current session and clears state based on frontend's command.
+    """
+    data = request.get_json()
+    result = data.get("result")
+
+    if result not in ['abort', 'finish']:
+        return jsonify({"status": "error", "reason": "Invalid or missing result"}), 400
+    
+    if not client_state.session_id:
+        return jsonify({"status": "error", "reason": "No session to close"}), 400 
+
+    # Signal backend
+    if result == 'abort':
+        client_state.abort_event.set()
     else:
-        return Response("No msg yet", status=400, mimetype="text/plain")
+        client_state.finish_event.set()
+
+    threading.Thread(target=local_close_sess, args=(client_state.finish_event.is_set(),), daemon=True).start()
+    return jsonify({"status": "ok"}), 200
+
+
+@back_app.route("/get-message", methods=["POST"])
+def get_message():
+    """
+    Sends queued status/message from backend to frontend.
+    """
+    if message_queue:
+        msg = message_queue.pop(0)
+        return jsonify({"status": "ok", "message": msg}), 200
+    return jsonify({"status": "error", "reason": "No messages yet"}), 400
+
+
+# === Entry Point ===
+if __name__ == '__main__':
+    run_back_server()

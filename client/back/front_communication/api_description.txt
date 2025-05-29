@@ -1,0 +1,93 @@
+
+===============================
+Client Local Backend API (HTTP)
+===============================
+
+Base URL: http://127.0.0.1:<BACK_SERV_PORT>
+
+This local API is used for communication between the Client Frontend (CLI/GUI) and the Client Backend.
+
+-------------------
+POST /front-connect
+-------------------
+Description:
+    Initiates connection to the Remote Flights Dispatcher (RFD) using a mission_id.
+
+Payload:
+    {
+        "mission_id": "<UUID string>"
+    }
+
+Response:
+    200 OK or 400 with error reason
+
+----------------------
+POST /front-disconnect
+----------------------
+Description:
+    Disconnects from Tailscale, removes VPN credentials.
+
+Payload:
+    {}
+
+Response:
+    200 OK
+
+---------------------------
+POST /front-launch-session
+---------------------------
+Description:
+    Starts a new session using the credentials and parameters obtained from RFD.
+
+Payload:
+    {}
+
+Response:
+    200 OK or 400 if session_id is not present
+
+---------------------------
+POST /front-close-session
+---------------------------
+Description:
+    Requests the backend to gracefully close the session (abort or finish).
+
+Payload:
+    {
+        "result": "abort" | "finish"
+    }
+
+Response:
+    200 OK or 400 with error reason
+
+-------------------
+POST /get-message
+-------------------
+Description:
+    Frontend polls this endpoint for messages from the backend (e.g. Tailscale events, session requests).
+
+Payload:
+    {}
+
+Response:
+    {
+        "status": "ok",
+        "message": "<string>"
+    }
+    or
+    {
+        "status": "error",
+        "reason": "No messages yet"
+    }
+
+----------------
+POST /shutdown
+----------------
+Description:
+    Requests a full shutdown of the backend and the GCS connection (if any).
+
+Payload:
+    {}
+
+Response:
+    200 OK or 400 if already stopped
+

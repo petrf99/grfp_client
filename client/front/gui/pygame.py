@@ -16,8 +16,8 @@ def pygame_init(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="RC Controller")
         logger.error(f"[ERROR] Pygame init failed: {e}", exc_info=True)
         raise
 
-    # 🖥️ Инициализация экрана
-    font = pygame.font.Font(None, 24)  # безопасный способ
+    # 🖥️ Screen initialization
+    font = pygame.font.Font(None, 24)  
     if font is None:
         logger.error("Font failed to load!")
 

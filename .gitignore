@@ -1,7 +1,9 @@
 venv/
 /.env
 logs/
-__pycache__/
+*cache*/
 /.DS_Store
-*.txt
+*token*.txt
 *.ts
+*.pem
+tech_utils/

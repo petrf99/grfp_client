@@ -1,0 +1,28 @@
+Remote Flights Platform (RFP) Client Help
+=========================================
+
+Available Commands (free input mode):
+
+  start            - Begin the interactive session
+  connect          - Connect to your Ground Control Station (GCS) via Tailnet
+  disconnect       - Disconnect from the Tailnet and close current session
+  status           - Display the current status of your client and session
+  launch           - Launch the session (starts telemetry, video and RC stream)
+  finish           - Finish the session (report as completed)
+  abort            - Abort the current session (report as failed)
+  help             - Display this help text
+  exit / leave     - Exit the client and shut down the system
+
+Instructions:
+
+- After launching the client, type 'start' to begin.
+- You can wait for a session to be offered or use 'connect' to join manually.
+- To exit safely, use 'finish', 'abort', or 'disconnect' followed by 'exit'.
+
+Notes:
+
+- The system automatically manages your connection to the Tailnet via Tailscale.
+- During an active session, you will receive telemetry and video feed from the drone.
+- Please ensure you have a valid Mission ID (UUID format) to connect.
+
+For further assistance, contact your system administrator.

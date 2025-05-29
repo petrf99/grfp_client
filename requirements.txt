@@ -3,3 +3,6 @@ dotenv
 requests
 flask
 opencv-python
+cryptography
+pytest
+pytest-flask

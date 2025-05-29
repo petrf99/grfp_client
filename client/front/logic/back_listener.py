@@ -1,64 +1,90 @@
 import requests
 import time
-import threading
+import re
 
+from client.front.config import BACK_SERV_PORT, BACK_POLLING_INTERVAL
+from tech_utils.safe_post_req import post_request
 from tech_utils.logger import init_logger
+
 logger = init_logger("Front_BCK_Listener")
-
-class SessionState:
-    def __init__(self):
-        self.abort_event = threading.Event()
-        self.finish_event = threading.Event()
-        self.connected_event = threading.Event()
-        self.external_stop_event = threading.Event()
-
-    def clear(self):
-        self.abort_event.clear()
-        self.finish_event.clear()
-        self.connected_event.clear()
-
-sess_state = SessionState()
+BASE_URL = f"http://127.0.0.1:{BACK_SERV_PORT}"
 
 
+def extract_ip(s: str) -> str | None:
+    """
+    Extracts the first valid IPv4 address found in a string.
+    """
+    match = re.search(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', s)
+    return match.group(0) if match else None
 
-from client.front.config import CLIENT_BACK_SERV_PORT, BACK_POLLING_INTERVAL
 
-url = f"http://127.0.0.1:{CLIENT_BACK_SERV_PORT}/get-message"
+def extract_uuid4(text: str) -> str | None:
+    """
+    Extracts the first UUIDv4 string found in the input text.
+    """
+    match = re.search(
+        r'\b[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b',
+        text,
+        re.IGNORECASE
+    )
+    return match.group(0) if match else None
 
 def back_polling():
-    from client.front.logic.input_handlers import state
-    global url
-    try:
-        while True:
-            res = requests.get(url, timeout=3)
+    """
+    Polls the backend periodically for status updates and events.
+
+    Responds to:
+      - 'abort' or 'finish' commands (sets corresponding events)
+      - 'session-request' messages (extracts GCS IP and session ID)
+      - Tailscale connection updates
+      - General backend messages
+
+    Also handles automatic session closure if finish/abort is received.
+    """
+    from client.front.state import front_state
+
+    while front_state.poll_back_event.is_set():
+        try:
+            res = requests.post(url=BASE_URL+"/get-message", json={}, timeout=3)
             if res.status_code == 200:
-                message = res.text
+                message = res.json().get('message')
                 if message == "abort":
-                    logger.info("Abort command received from Back-end")
-                    print("Abort command received from Back-end. Stopping the session")
-                    sess_state.abort_event.set()
-                    sess_state.external_stop_event.set()
-                    time.sleep(1)
-                    sess_state.clear()
-                    state.clear()
-                    print("Session stopped.")
+                    logger.info("Abort command received from backend.")
+                    front_state.abort_event.set()
+                    post_request(
+                        url=f"{BASE_URL}/front-close-session",
+                        payload={"result": "abort"},
+                        description="Front2Back: abort session"
+                    )
+
                 elif message == "finish":
-                    logger.info("Finish command received from Back-end")
-                    print("Finish command received from Back-end. Stopping the session.")
-                    sess_state.finish_event.set()
-                    sess_state.external_stop_event.set()
-                    time.sleep(1)
-                    sess_state.clear()
-                    state.clear()
-                    print("Session stopped.")
-                elif message == "connected":
-                    sess_state.connected_event.set()
-                    print("Session connected. Press Enter to continue")
-                    logger.info("Session connected")
+                    logger.info("Finish command received from backend.")
+                    front_state.finish_event.set()
+                    post_request(
+                        url=f"{BASE_URL}/front-close-session",
+                        payload={"result": "finish"},
+                        description="Front2Back: finish session"
+                    )
+
+                elif message.startswith("session-request"):
+                    print(f"\n👋 GCS {extract_ip(message)} requests a session.\nType 'launch' to start or 'abort' to cancel it")
+                    front_state.session_id = extract_uuid4(message)
+
+                elif message.startswith("ts-connected"):
+                    front_state.tailscale_connected_event.set()
+                    front_state.tailscale_disconnect_event.clear()
+                    print(" ".join(message.split(" ")[1:]))
+
+                elif message.startswith("ts-disconnected"):
+                    front_state.tailscale_disconnect_event.set()
+                    front_state.tailscale_connected_event.clear()
+                    print(" ".join(message.split(" ")[1:]))
+
                 else:
+                    logger.warning(f"Polling exception: {e}")
                     print(message)
 
-            time.sleep(BACK_POLLING_INTERVAL)
+        except Exception as e:
+            time.sleep(2)
 
-    except Exception as e:
-        logger.error(f"Unsuccessfull get-message attempt to Back. Exception: {e}. Retrying...")
+        time.sleep(BACK_POLLING_INTERVAL)

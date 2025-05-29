@@ -1,60 +1,120 @@
 from tech_utils.logger import init_logger
-logger = init_logger("Client_Tailscale_Connect")
 
-
-import time
-import requests
-from typing import Optional
-
-from client.back.front_communication.front_msg_sender import send_message_to_front
-
-from client.back.config import RFD_IP, RFD_SM_PORT, TAILSCALE_IP_POLL_INTERVAL, TAILSCAPE_IP_TIMEOUT
+import base64
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from tech_utils.cryptography import generate_keys_if_needed
+from tech_utils.safe_post_req import post_request
 from tech_utils.tailscale import tailscale_up
 
-import hashlib
-def hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest().upper()
+from client.back.config import (
+    RFD_IP, RFD_SM_PORT, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
+)
+from client.back.state import client_state
+from client.back.front_communication.front_msg_sender import send_message_to_front
 
-def start_tailscale(session_id, auth_token, tag):
-    hostname = f"{tag}-{session_id[:8]}"
-    return tailscale_up(hostname, auth_token)
+logger = init_logger("Client_Tailscale_Connect")
 
-def wait_for_tailscale_ips(session_id: str, auth_token: str) -> Optional[tuple[str, str]]:
-    start = time.time()
-    send_message_to_front("🔄 Waiting for GCS to connect on Genesis Private Network...")
-    hash_auth_token = hash_token(auth_token)
-    try:
-        while True:
-            try:
-                response = requests.post(f"http://{RFD_IP}:{RFD_SM_PORT}/get-tailscale-ips", json={"session_id": session_id, 'hash_auth_token': hash_auth_token}, timeout=5)
-                if response.status_code == 200:
-                    data = response.json()
-                    gcs_ip = data.get("gcs_ip")
-                    client_ip = data.get("client_ip")
-                    if gcs_ip and client_ip:
-                        send_message_to_front(f"✅ Both sides connected. GCS IP: {gcs_ip}, Client IP: {client_ip}")
-                        logger.info(f"{session_id} Connected. GCS: {gcs_ip}, Client: {client_ip}")
-                        return gcs_ip, client_ip
-                else:
-                    logger.info(f"{session_id} Waiting for GCS to be ready...")
-                    send_message_to_front("Waiting for GCS to be ready...")
-            except Exception as e:
-                send_message_to_front("Could not connect on Genesis Private Network")
-                logger.warning(f"{session_id} Could not query tailscale-ips: {e}")
+# === Constants ===
+RFD_URL = f"http://{RFD_IP}:{RFD_SM_PORT}"
+RFD_CONNECT_URL = f"{RFD_URL}/get-vpn-connection"
+RFD_DELETE_CONN_URL = f"{RFD_URL}/delete-vpn-connection"
+
+# === Internal ===
+
+def connect(mission_id: str) -> bool:
+    """
+    Orchestrates the full connection to Tailscale via RFD.
+    Stores mission_id and attempts to retrieve and activate VPN credentials.
+    """
+    client_state.mission_id = mission_id
+    if not get_vpn_connection():
+        send_message_to_front("ts-disconnected ❌ Couldn't obtain VPN credentials")
+        return False
+
+    return start_tailscale()
+
+def start_tailscale() -> bool:
+    """
+    Uses stored hostname and token to bring up the Tailscale connection.
+    """
+    if not tailscale_up(client_state.hostname, client_state.token):
+        send_message_to_front("ts-disconnected ❌ Tailscale connect failed")
+        return False
+    
+    send_message_to_front("ts-connected ✅ Tailscale connected")
+    return True
 
 
-            time.sleep(TAILSCALE_IP_POLL_INTERVAL)
+# === RFD API ===
 
-            if time.time() - start >= TAILSCAPE_IP_TIMEOUT:
-                logger.error(f"{session_id} Timeout while waiting for Tailscale IPs")
-                send_message_to_front("Timeout while connecting to Genesis Private Network")
-                return None
-            
-    except KeyboardInterrupt:
-        logger.warning(f"{session_id} Interrupted by user while waiting for Tailscale")
-        return None
+def get_vpn_connection() -> bool:
+    """
+    Sends a request to the RFD to retrieve VPN connection credentials using RSA public key encryption.
+    Expects a base64-encoded token in response, which it decrypts with the private key.
+    """
+    send_message_to_front("Requesting VPN credentials from Remote Flights Dispatcher...")
+    logger.info("Sending get-vpn-connection request to RFD")
+
+    # Ensure RSA key pair exists
+    logger.info("Generating RSA keys if needed")
+    generate_keys_if_needed(RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH)
+
+    # Load public key to send
+    with open(RSA_PUBLIC_PEM_PATH, "rb") as f:
+        public_pem = f.read()
+
+    payload = {
+        "tag": "client",
+        "rsa_pub_key": public_pem.decode('utf-8'),
+        "mission_id": client_state.mission_id
+    }
+
+    # Send request
+    res = post_request(RFD_CONNECT_URL, payload, "Client get-vpn-connection")
+    if res:
+        # Decrypt and store token
+        with open(RSA_PRIVATE_PEM_PATH, "rb") as f:
+            private_key = serialization.load_pem_private_key(f.read(), password=None)
+        
+        client_state.token = private_key.decrypt(
+            base64.b64decode(res.get("token")),
+            padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
+        ).decode()
+
+        # Save metadata
+        client_state.hostname = res.get("hostname")
+        client_state.token_hash = res.get("token_hash")
+
+        send_message_to_front("✅ VPN credentials obtained.")
+        logger.info(f"get-vpn-connection succeeded. Hostname: {client_state.hostname}, Token hash: {client_state.token_hash}, Token (last 10 chars): {client_state.token[-10:]}")
+        return True
+    else:
+        send_message_to_front("❌ Can't obtain VPN credentials. Please contact admin")
+        logger.error("get-vpn-connection failed.")
+        return False
     
 
+def delete_vpn_connection() -> bool:
+    """
+    Informs the RFD that this client's VPN credentials should be revoked.
+    """
+    send_message_to_front("Deleting VPN credentials from Remote Flights Dispatcher...")
+    logger.info("Sending delete-vpn-connection request to RFD")
+
+    payload = {
+        "hostname": client_state.hostname,
+        "token_hash": client_state.token_hash
+    }
+
+    res = post_request(RFD_DELETE_CONN_URL, payload, "Client delete-vpn-connection")
+    if res:
+        send_message_to_front("✅ VPN credentials deleted from RFD.")
+        logger.info(f"delete-vpn-connection succeeded. Hostname: {client_state.hostname}, Token hash: {client_state.token_hash}")
+    else:
+        send_message_to_front("❌ Can't delete VPN credentials from RFD. Please contact admin")
+        logger.error("delete-vpn-connection failed.")
+
+    return res is not None
 
 
-    
