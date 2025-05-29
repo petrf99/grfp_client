@@ -8,14 +8,15 @@ logger = init_logger("Front_UDP_Listeners")
 
 from client.front.config import CLIENT_VID_RECV_PORT
 
+# 📏 Get the video resolution (width x height) from the incoming UDP stream using ffprobe
 def get_video_resolution():
     cmd = [
         "ffprobe",
-        "-v", "error",  # выводим только ошибки
-        "-select_streams", "v:0",  # выбираем первый видеопоток
-        "-show_entries", "stream=width,height",  # запрашиваем ширину и высоту
-        "-of", "json",  # формат вывода — JSON
-        f"udp://@:{CLIENT_VID_RECV_PORT}"  # источник — UDP поток на указанном порту
+        "-v", "error",  # show only errors
+        "-select_streams", "v:0",  # select the first video stream
+        "-show_entries", "stream=width,height",  # request width and height info
+        "-of", "json",  # output format as JSON
+        f"udp://@:{CLIENT_VID_RECV_PORT}"  # video source: UDP stream on specified port
     ]
 
     out = subprocess.run(cmd, capture_output=True)
@@ -25,8 +26,8 @@ def get_video_resolution():
     return w, h
 
 
-# 🎥 Подключение к локальному видео-порту
-def get_video_cap(n_attempts):
+# 🎥 Connect to the local UDP video port and start receiving raw video frames via ffmpeg
+def get_video_cap():
     ffmpeg_recv_cmd = [
         "ffmpeg",
         "-fflags", "+discardcorrupt",
@@ -39,11 +40,13 @@ def get_video_cap(n_attempts):
         "-"
     ]
 
-
     return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
 
+
+# 📡 Global telemetry data storage
 telemetry_data = {}
 
+# 📡 Start listening for telemetry data on the given socket and update telemetry state
 def get_telemetry(tlmt_sock):
     from client.front.state import front_state
     global telemetry_data
@@ -53,14 +56,15 @@ def get_telemetry(tlmt_sock):
                 data, addr = tlmt_sock.recvfrom(65536)
                 telemetry_data.clear()
                 telemetry_data.update(json.loads(data))
+                
+                # Calculate round-trip time (RTT) for RC channel timestamps if available
                 cur_time = time.time()
                 init_timestamp = telemetry_data.get("rc_channels", {}).get("init_timestamp")
                 if init_timestamp:
-                    telemetry_data["round_trip_time_ms"] = int(1000*(cur_time - init_timestamp))
+                    telemetry_data["round_trip_time_ms"] = int(1000 * (cur_time - init_timestamp))
             except socket.timeout:
-                pass
+                pass  # Normal case if no data received yet
     except OSError as e:
-        logger.warning(f"Telemetry receiver socker closed {e}")
+        logger.warning(f"Telemetry receiver socket closed: {e}")
     except Exception as e:
         logger.error(f"Telemetry receiver error: {e}")
-    

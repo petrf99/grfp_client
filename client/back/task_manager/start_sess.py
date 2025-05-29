@@ -9,18 +9,20 @@ import threading
 from tech_utils.logger import init_logger
 logger = init_logger("Back_SessStarter")
 
+# Starts a remote session with the GCS
 def start_session():
+    # 1. Perform TCP handshake with GCS to establish session
     if not send_start_message_to_gcs():
         logger.error(f"Start session failed on handshake with GCS {client_state}")
         return False
     
+    # 2. Start background thread to periodically ping GCS to ensure connection stays alive
     threading.Thread(target=keep_connection, daemon=True).start()
 
+    # 3. Start background thread to send RC (remote control) data to GCS via UDP
     threading.Thread(target=stream_rc_to_gcs, daemon=True).start()
 
+    # 4. Notify front-end and log session start
     send_message_to_front("✅ Session started")
     logger.info(f"Session started {client_state}")
     return True
-
-
-    

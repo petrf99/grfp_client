@@ -3,7 +3,6 @@ venv/
 logs/
 __pycache__/
 /.DS_Store
-client/settings
-*.txt
+*token*.txt
 *.ts
 *.pem

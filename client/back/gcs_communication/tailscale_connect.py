@@ -1,55 +1,66 @@
 from tech_utils.logger import init_logger
-logger = init_logger("Client_Tailscale_Connect")
 
-
-from cryptography.hazmat.primitives import serialization
 import base64
-from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization, hashes
-from tech_utils.rsa_keys_gen import generate_keys_if_needed
-
+from cryptography.hazmat.primitives.asymmetric import padding
+from tech_utils.cryptography import generate_keys_if_needed
 from tech_utils.safe_post_req import post_request
-
-from client.back.front_communication.front_msg_sender import send_message_to_front
-
-from client.back.config import RFD_IP, RFD_SM_PORT
-from client.back.state import client_state
 from tech_utils.tailscale import tailscale_up
 
-# === Tailscale up ===
+from client.back.config import (
+    RFD_IP, RFD_SM_PORT, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
+)
+from client.back.state import client_state
+from client.back.front_communication.front_msg_sender import send_message_to_front
 
-def connect(mission_id):
+logger = init_logger("Client_Tailscale_Connect")
+
+# === Constants ===
+RFD_URL = f"http://{RFD_IP}:{RFD_SM_PORT}"
+RFD_CONNECT_URL = f"{RFD_URL}/get-vpn-connection"
+RFD_DELETE_CONN_URL = f"{RFD_URL}/delete-vpn-connection"
+
+# === Internal ===
+
+def connect(mission_id: str) -> bool:
+    """
+    Orchestrates the full connection to Tailscale via RFD.
+    Stores mission_id and attempts to retrieve and activate VPN credentials.
+    """
     client_state.mission_id = mission_id
     if not get_vpn_connection():
-        send_message_to_front("ts-disconnected: ❌ Tailscale connect failed")
+        send_message_to_front("ts-disconnected ❌ Tailscale connect failed")
         return False
 
     return start_tailscale()
 
-def start_tailscale():
+def start_tailscale() -> bool:
+    """
+    Uses stored hostname and token to bring up the Tailscale connection.
+    """
     if not tailscale_up(client_state.hostname, client_state.token):
-        send_message_to_front("ts-disconnected: ❌ Tailscale connect failed")
+        send_message_to_front("ts-disconnected ❌ Tailscale connect failed")
         return False
     
-    send_message_to_front("ts-connected: ✅ Tailscale connected")
+    send_message_to_front("ts-connected ✅ Tailscale connected")
     return True
 
 
-# === Get connection via RFD ===
-from client.back.config import RFD_IP, RFD_SM_PORT, ABORT_MSG, FINISH_MSG
-RFD_URL = f"http://{RFD_IP}:{RFD_SM_PORT}"
+# === RFD API ===
 
-RFD_CONNECT_URL = RFD_URL + "/get-vpn-connection"  
-
-from client.back.config import RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
-def get_vpn_connection():
+def get_vpn_connection() -> bool:
+    """
+    Sends a request to the RFD to retrieve VPN connection credentials using RSA public key encryption.
+    Expects a base64-encoded token in response, which it decrypts with the private key.
+    """
     send_message_to_front("Requesting VPN credentials from Remote Flights Dispatcher...")
-    logger.info(f"Sending get-vpn-connection request to RFD")
+    logger.info("Sending get-vpn-connection request to RFD")
 
-    logger.info("Generate RSA keys")
+    # Ensure RSA key pair exists
+    logger.info("Generating RSA keys if needed")
     generate_keys_if_needed(RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH)
 
-
+    # Load public key to send
     with open(RSA_PUBLIC_PEM_PATH, "rb") as f:
         public_pem = f.read()
 
@@ -59,30 +70,37 @@ def get_vpn_connection():
         "mission_id": client_state.mission_id
     }
 
+    # Send request
     res = post_request(RFD_CONNECT_URL, payload, "Client get-vpn-connection")
     if res:
+        # Decrypt and store token
         with open(RSA_PRIVATE_PEM_PATH, "rb") as f:
             private_key = serialization.load_pem_private_key(f.read(), password=None)
+        
         client_state.token = private_key.decrypt(
             base64.b64decode(res.get("token")),
             padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
         ).decode()
 
+        # Save metadata
         client_state.hostname = res.get("hostname")
         client_state.token_hash = res.get("token_hash")
-        send_message_to_front(f"✅ VPN credentials obtained.")
-        logger.info(f"get-vpn-connection succeed. Hostname: {client_state.hostname}. Token_hash: {client_state.token_hash}. Token: {client_state.token[-10:]}")
+
+        send_message_to_front("✅ VPN credentials obtained.")
+        logger.info(f"get-vpn-connection succeeded. Hostname: {client_state.hostname}, Token hash: {client_state.token_hash}, Token (last 10 chars): {client_state.token[-10:]}")
+        return True
     else:
-        send_message_to_front(f"❌ Can't obtain VPN credentials. Please contact admin")
-        logger.error(f"get-vpn-connection failed.")
+        send_message_to_front("❌ Can't obtain VPN credentials. Please contact admin")
+        logger.error("get-vpn-connection failed.")
+        return False
+    
 
-    return res is not None
-
-
-RFD_DELETE_CONN_URL = RFD_URL + "/delete-vpn-connection"  
-def delete_vpn_connection():
+def delete_vpn_connection() -> bool:
+    """
+    Informs the RFD that this client's VPN credentials should be revoked.
+    """
     send_message_to_front("Deleting VPN credentials from Remote Flights Dispatcher...")
-    logger.info(f"Sending delete-vpn-connection request to RFD")
+    logger.info("Sending delete-vpn-connection request to RFD")
 
     payload = {
         "hostname": client_state.hostname,
@@ -91,10 +109,12 @@ def delete_vpn_connection():
 
     res = post_request(RFD_DELETE_CONN_URL, payload, "Client delete-vpn-connection")
     if res:
-        send_message_to_front(f"✅ VPN credentials deleted from RFD.")
-        logger.info(f"delete-vpn-connection succeed. Hostname: {client_state.hostname}. Token_hash: {client_state.token_hash}.")
+        send_message_to_front("✅ VPN credentials deleted from RFD.")
+        logger.info(f"delete-vpn-connection succeeded. Hostname: {client_state.hostname}, Token hash: {client_state.token_hash}")
     else:
-        send_message_to_front(f"❌ Can't delte VPN credentials from RFD. Please contact admin")
-        logger.error(f"delete-vpn-connection failed.")
+        send_message_to_front("❌ Can't delete VPN credentials from RFD. Please contact admin")
+        logger.error("delete-vpn-connection failed.")
 
     return res is not None
+
+

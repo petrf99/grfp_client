@@ -1,22 +1,39 @@
-import sys
-import shutil
-import re
-import subprocess
-from tech_utils.safe_subp_run import safe_subp_run
-import os
-import time
+"""
+Tailscale Integration Utilities
+===============================
 
+This module provides a complete cross-platform interface for working with the
+Tailscale CLI and daemon (`tailscaled`). It includes:
+
+- Discovery of the Tailscale binary (CLI and macOS GUI variants)
+- Detection and startup of the `tailscaled` service if needed
+- Bringing Tailscale up/down using an auth key and custom hostname
+- Parsing Tailscale status output to retrieve peer IP addresses
+- Retry and sudo-based fallback logic when permissions are insufficient
+
+Supports Linux, macOS (CLI & GUI), and Windows environments.
+"""
+
+import os
+import sys
+import time
+import json
+import shlex
+import shutil
+import subprocess
+from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv()
 
 from tech_utils.logger import init_logger
-logger = init_logger("Tailsale_TechUtils")
+from tech_utils.safe_subp_run import safe_subp_run
 
+logger = init_logger("Tailscale_TechUtils")
+load_dotenv()
 
-# ===== UTILS ====
+# === Internal Utility Functions ===
 
 def find_gui_tailscale_path_macos() -> str | None:
-    # 1. Попытка найти через Spotlight (mdfind по bundle id)
+    """Try to locate the macOS GUI Tailscale binary via Spotlight or standard folders."""
     try:
         result = subprocess.run(
             ["mdfind", "kMDItemCFBundleIdentifier == 'com.tailscale.ipn.macsys'"],
@@ -29,7 +46,6 @@ def find_gui_tailscale_path_macos() -> str | None:
     except Exception:
         pass
 
-    # 2. Ручной обход популярных директорий
     possible_dirs = [
         "/Applications",
         os.path.expanduser("~/Applications"),
@@ -40,26 +56,20 @@ def find_gui_tailscale_path_macos() -> str | None:
     for directory in possible_dirs:
         if not os.path.exists(directory):
             continue
-
         for item in os.listdir(directory):
             if item.lower().startswith("tailscale") and item.endswith(".app"):
                 candidate = os.path.join(directory, item, "Contents", "MacOS", "Tailscale")
                 if os.path.exists(candidate):
                     return candidate
 
-    # 3. Жёсткий fallback: стандартный путь
     fallback = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
-    if os.path.exists(fallback):
-        return fallback
-
-    return None
+    return fallback if os.path.exists(fallback) else None
 
 
-    
 def get_tailscale_path() -> str:
+    """Locate the Tailscale CLI binary based on platform."""
     os_name = sys.platform
 
-    # 1. Windows: try `where`
     if os_name.startswith("win"):
         try:
             result = subprocess.run(["where", "tailscale"], capture_output=True, text=True)
@@ -70,12 +80,10 @@ def get_tailscale_path() -> str:
         except Exception:
             pass
 
-    # 2. POSIX (Linux/macOS): try `which`
     found = shutil.which("tailscale")
     if found and os.path.exists(found):
         return found
 
-    # 3. macOS: fallback to GUI
     if os_name == "darwin":
         gui_bin = find_gui_tailscale_path_macos()
         if gui_bin and os.path.exists(gui_bin):
@@ -84,16 +92,14 @@ def get_tailscale_path() -> str:
     raise RuntimeError("❌ Tailscale binary not found on this system.")
 
 
-
 def get_tailscaled_path():
-    # Аналогично tailscale, ищем tailscaled
+    """Find the tailscaled binary if available (Linux/macOS only)."""
     path = shutil.which("tailscaled")
     if path and os.path.exists(path):
         return path
 
-    # Попробуем GUI-путь macOS или другие редкие пути (по желанию)
     fallback_paths = [
-        "/Users/peter/.homebrew/bin/tailscaled",  # для конкретных случаев
+        "/Users/peter/.homebrew/bin/tailscaled",  # custom local path
     ]
     for alt_path in fallback_paths:
         if os.path.exists(alt_path):
@@ -103,21 +109,19 @@ def get_tailscaled_path():
 
 
 def is_tailscaled_running() -> bool:
-    # True только если процесс запущен и сокет существует
+    """Check if tailscaled daemon is running."""
     try:
         result = subprocess.run(["pgrep", "tailscaled"], capture_output=True, text=True)
-        if result.returncode != 0:
-            return False
-        return True #os.path.exists("/var/run/tailscaled.socket")
+        return result.returncode == 0
     except Exception as e:
         logger.warning(f"Error checking tailscaled status: {e}")
         return False
 
 
-def is_tailscale_installed() -> bool:
+def is_tailscale_installed() -> str | bool:
+    """Determine whether Tailscale is installed (CLI or macOS GUI)."""
     os_name = sys.platform
 
-    # Windows: try `where tailscale`
     if os_name.startswith("win"):
         try:
             result = subprocess.run(["where", "tailscale"], capture_output=True, text=True)
@@ -125,84 +129,74 @@ def is_tailscale_installed() -> bool:
         except Exception:
             return False
 
-    # Unix: try `which`
-    cli_path = shutil.which("tailscale")
-    if cli_path:
+    if shutil.which("tailscale"):
         return True
 
-    # macOS only: try GUI version
     if os_name == "darwin":
         gui_path = find_gui_tailscale_path_macos()
         if gui_path and os.path.exists(gui_path):
             return 'macos-gui'
-        
+
     return False
 
 
 def needs_sudo_retry(stderr: str, os_name: str) -> bool:
+    """Check if the error suggests retrying the command with sudo."""
     if not os_name.startswith(("linux", "darwin")):
         return False
     stderr = stderr.lower()
-    return any(
-        msg in stderr for msg in [
-            "failed to connect to local tailscaled",
-            "can't connect",
-            "permission denied",
-            "access denied",
-            "connect: permission denied"
-        ]
-    )
+    return any(msg in stderr for msg in [
+        "failed to connect to local tailscaled",
+        "can't connect",
+        "permission denied",
+        "access denied",
+        "connect: permission denied"
+    ])
 
+# === tailscaled Daemon Handling ===
 
-# ============== UP ==================
-
-
-
-import shlex
 def start_tailscaled_if_needed() -> bool:
+    """Start tailscaled in background if it's not already running."""
     if is_tailscaled_running():
         return True
-    
-    logger.info("Starting tailscaled")
 
+    logger.info("Starting tailscaled")
     path = get_tailscaled_path()
     if not path:
         logger.error("❌ tailscaled binary not found.")
         return False
-    
 
     try:
         print(f"🚀 Starting tailscaled via: {path}")
-        # ⛔️ Важно: используем shell=True + nohup + redirect + background
         shell_cmd = f"nohup {shlex.quote(path)} --state=mem: >/dev/null 2>&1 &"
         sudo_cmd = ["sudo", "sh", "-c", shell_cmd]
 
         safe_subp_run(
-            sudo_cmd,
-            retries=3, timeout=5, delay_between_retries=3,
-            check=True,
-            text=True,
-            stdin=sys.stdin  # позволяет ввести пароль
+            sudo_cmd, retries=3, timeout=5, delay_between_retries=3,
+            check=True, text=True, stdin=sys.stdin
         )
-        # Подождём немного и проверим несколько раз
-        for i in range(10):
+
+        for _ in range(10):
             time.sleep(1.5)
             if is_tailscaled_running():
                 print("✅ tailscaled is now running.")
                 time.sleep(3)
                 logger.info("tailscaled is now running")
                 return True
+
         print("❌ tailscaled did not start within timeout.")
         logger.error("tailscaled did not start within timeout.")
         return False
+
     except Exception as e:
         logger.error(f"❌ Failed to start tailscaled: {e}")
         return False
 
-    
 
+# === Tailscale CLI Actions ===
 
-def tailscale_up(hostname: str, auth_token: str):
+def tailscale_up(hostname: str, auth_token: str) -> bool:
+    """Start and authenticate Tailscale on this machine."""
     print("🔧 Starting Tailscale...")
     is_installed = is_tailscale_installed()
     if not is_installed:
@@ -223,79 +217,39 @@ def tailscale_up(hostname: str, auth_token: str):
 
     try:
         logger.info(f"Starting tailscale for {hostname}")
-        safe_subp_run(cmd, retries=3,
-                timeout=5,
-            delay_between_retries=3,
-            check=True, capture_output=True, text=True, shell=os_name.startswith("win"))
-
+        safe_subp_run(cmd, retries=3, timeout=5, delay_between_retries=3,
+                      check=True, capture_output=True, text=True, shell=os_name.startswith("win"))
         print("✅ Tailscale started.")
         logger.info(f"{hostname} Tailscale start succeeded on {os_name}")
         return True
 
     except subprocess.CalledProcessError as e:
-        stderr = e.stderr or ""
-        if needs_sudo_retry(stderr, os_name):
-            # 2. Пробуем с sudo (если ошибка похожа на "нужен tailscaled")
+        if needs_sudo_retry(e.stderr or "", os_name):
             logger.info(f"Retry to start tailscale with sudo for {hostname}")
             try:
                 sudo_cmd = ["sudo"] + cmd
-                safe_subp_run(
-                    sudo_cmd,
-                    retries=3, timeout=60, delay_between_retries=3,
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                    shell=False,
-                    stdin=sys.stdin
-                )
+                safe_subp_run(sudo_cmd, retries=3, timeout=60, delay_between_retries=3,
+                              check=True, capture_output=True, text=True, shell=False, stdin=sys.stdin)
                 print("✅ Tailscale started with sudo.")
                 logger.info(f"{hostname} Tailscale sudo-start succeeded on {os_name}")
                 return True
-
             except subprocess.CalledProcessError as sudo_e:
                 print("❌ Failed to start Tailscale with sudo:", sudo_e)
-                logger.error(
-                    f"{hostname} Tailscale sudo start failed. OS: {os_name} "
-                    f"STDOUT: {sudo_e.stdout} STDERR: {sudo_e.stderr}",
-                    exc_info=True
-                )
+                logger.error(f"Tailscale sudo start failed", exc_info=True)
                 return False
 
-        # Если ошибка не связана с tailscaled — не пробуем sudo
         print("❌ Failed to start Tailscale (non-sudo issue):", e)
-        logger.error(
-            f"{hostname} Tailscale start failed (non-sudo). OS: {os_name} "
-            f"STDOUT: {e.stdout} STDERR: {e.stderr}",
-            exc_info=True
-        )
+        logger.error(f"Tailscale start failed", exc_info=True)
         return False
-    
+
     except Exception as e:
         print("❌ Unexpected error while starting Tailscale:", e)
         logger.exception("Unexpected error during Tailscale start-up")
         return False
 
 
-
-# =================== DOWN ==================
-
-
-def stop_tailscaled():
-    try:
-        # Получаем PID
-        result = subprocess.run(["pgrep", "tailscaled"], capture_output=True, text=True)
-        if result.returncode != 0:
-            return False
-
-        pids = result.stdout.strip().split()
-        for pid in pids:
-            subprocess.run(["sudo", "kill", pid])
-        return True
-    except Exception as e:
-        logger.warning(f"❌ Could not stop tailscaled: {e}")
-        return False
-
 def tailscale_down():
+    """Disconnect from Tailscale and stop tailscaled if needed."""
     is_installed = is_tailscale_installed()
     if not is_installed:
         print("❌ Tailscale is not installed.")
@@ -303,7 +257,6 @@ def tailscale_down():
         return
 
     mac_gui_flg = is_installed == 'macos-gui'
-
     os_name = sys.platform
     ts_path = get_tailscale_path()
     cmd = [ts_path, "down"]
@@ -311,43 +264,30 @@ def tailscale_down():
 
     print("🔌 Disconnecting from Tailnet...")
 
-    # 1. Попытка без sudo
     try:
         safe_subp_run(cmd, retries=3, timeout=5, delay_between_retries=3,
-                       check=True, capture_output=True, text=True, shell=shell_flag)
+                      check=True, capture_output=True, text=True, shell=shell_flag)
         print("✅ Tailscale VPN disconnected (no sudo).")
         logger.info("Tailscale VPN stopped without sudo")
 
     except subprocess.CalledProcessError as e:
-        stderr = e.stderr or ""
-        needs_sudo = needs_sudo_retry(stderr, os_name)
-
-        if needs_sudo:
+        if needs_sudo_retry(e.stderr or "", os_name):
             try:
                 sudo_cmd = ["sudo"] + cmd
                 safe_subp_run(sudo_cmd, retries=3, timeout=60, delay_between_retries=3,
-                               check=True, capture_output=True, text=True, stdin=sys.stdin)
+                              check=True, capture_output=True, text=True, stdin=sys.stdin)
                 print("✅ Tailscale VPN disconnected (with sudo).")
                 logger.info("Tailscale VPN stopped with sudo")
             except subprocess.CalledProcessError as sudo_e:
                 print("❌ Failed to disconnect Tailscale with sudo:", sudo_e)
-                logger.error(
-                    f"Tailscale sudo disconnect failed. OS: {os_name} "
-                    f"STDOUT: {sudo_e.stdout} STDERR: {sudo_e.stderr}",
-                    exc_info=True
-                )
+                logger.error("Tailscale sudo disconnect failed", exc_info=True)
         else:
             print("❌ Failed to disconnect Tailscale:", e)
-            logger.error(
-                f"Tailscale disconnect failed. OS: {os_name} "
-                f"STDOUT: {e.stdout} STDERR: {e.stderr}",
-                exc_info=True
-            )
+            logger.error("Tailscale disconnect failed", exc_info=True)
 
     except Exception as e:
         print("❌ Unexpected error while disconnecting Tailscale:", e)
         logger.exception("Unexpected error during Tailscale disconnect")
-
 
     if (not mac_gui_flg and os_name.startswith("darwin")) or os_name.startswith("linux"):
         if stop_tailscaled():
@@ -357,10 +297,25 @@ def tailscale_down():
             print("⚠️ tailscaled was not running or could not be stopped.")
 
 
-# === Get IP function ===
-import json
+def stop_tailscaled() -> bool:
+    """Stop tailscaled process via sudo kill."""
+    try:
+        result = subprocess.run(["pgrep", "tailscaled"], capture_output=True, text=True)
+        if result.returncode != 0:
+            return False
 
-def get_tailscale_ip_by_hostname(hostname):
+        for pid in result.stdout.strip().split():
+            subprocess.run(["sudo", "kill", pid])
+        return True
+    except Exception as e:
+        logger.warning(f"❌ Could not stop tailscaled: {e}")
+        return False
+
+
+# === Querying Peer IPs ===
+
+def get_tailscale_ip_by_hostname(hostname: str, peer_flg: bool = True) -> str | None:
+    """Query Tailscale IP for a given peer or local host by hostname."""
     try:
         ts_path = get_tailscale_path()
         result = subprocess.run(
@@ -371,15 +326,21 @@ def get_tailscale_ip_by_hostname(hostname):
             timeout=5
         )
         data = json.loads(result.stdout)
-        
-        for peer in data.get("Peer", {}).values():
-            if peer.get("Name", "").split(".")[0] == hostname:
-                # Возвращаем первый найденный IP-адрес
-                ips = peer.get("TailscaleIPs", [])
-                logger.info(f"Retrieved IPs {ips} for hostname {hostname}")
-                return ips[0] if ips else None
-        
-        return None  # Не найден
+
+        if peer_flg:
+            for peer_data in data.get("Peer", {}).values():
+                if peer_data.get("HostName", "").split(".")[0] == hostname:
+                    ips = peer_data.get("TailscaleIPs", [])
+                    ipv4s = [ip for ip in ips if '.' in ip]
+                    logger.info(f"Retrieved IPs {ipv4s} for hostname {hostname}")
+                    return ipv4s[0] if ipv4s else None
+        else:
+            self_data = data.get("Self", {})
+            if self_data.get("HostName", "").split(".")[0] == hostname:
+                ips = self_data.get("TailscaleIPs", [])
+                ipv4s = [ip for ip in ips if '.' in ip]
+                logger.info(f"Retrieved self IPs {ipv4s} for hostname {hostname}")
+                return ipv4s[0] if ipv4s else None
 
     except subprocess.CalledProcessError as e:
         logger.error(f"[!] Error executing tailscale: {e}")
@@ -391,7 +352,7 @@ def get_tailscale_ip_by_hostname(hostname):
     return None
 
 
-
+# === Manual Test Hook ===
 
 if __name__ == '__main__':
     tailscale_up('test-client', os.getenv("TEST_CLIENT_AUTH_KEY"))

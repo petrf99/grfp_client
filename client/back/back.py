@@ -6,18 +6,34 @@ from client.back.gcs_communication.tcp_communication import run_client_server
 from client.back.state import client_state
 import time
 
+
 def main():
-    logger.info("Starting Back")
+    """
+    Entry point for the Client Backend process.
+    
+    Responsibilities:
+    - Start local server for communication with frontend
+    - Start TCP server to communicate with GCS
+    - Wait for the event signaling backend shutdown
+    """
+    logger.info("Starting Client Backend")
+
     try:
         run_back_server()
         run_client_server()
+
+        # Wait until the event signals shutdown (e.g., from front or session end)
         client_state.stop_back_event.wait()
-        logger.info("Stopping Back")
+
+        logger.info("Client Backend stopping")
         return 0
+
     except KeyboardInterrupt:
+        logger.warning("Interrupted by user — shutting down")
         shutdown_back_server()
-        logger.info("Stopping Back")
+        logger.info("Client Backend stopped via KeyboardInterrupt")
         return -1
+
 
 if __name__ == '__main__':
     main()

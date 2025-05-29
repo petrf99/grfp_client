@@ -1,6 +1,6 @@
 import socket
 
-# === Создание UDP-сокета ===
+# === UDP-socket creation ===
 def get_socket(host = "0.0.0.0", port=None, bind=False, timeout=1):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     if bind:
