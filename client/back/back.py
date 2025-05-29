@@ -1,11 +1,13 @@
 from tech_utils.logger import init_logger
-logger = init_logger("Back_Main")
 
-from client.back.front_communication.local_server import run_back_server, shutdown_back_server
+from client.back.front_communication.local_server import run_back_server
+from tech_utils.flask_server_utils import shutdown_server
 from client.back.gcs_communication.tcp_communication import run_client_server
 from client.back.state import client_state
+from client.back.config import BACK_SERV_PORT
 import time
 
+logger = init_logger("Back_Main")
 
 def main():
     """
@@ -30,7 +32,7 @@ def main():
 
     except KeyboardInterrupt:
         logger.warning("Interrupted by user — shutting down")
-        shutdown_back_server()
+        shutdown_server("127.0.0.1", BACK_SERV_PORT, None, logger=logger)
         logger.info("Client Backend stopped via KeyboardInterrupt")
         return -1
 

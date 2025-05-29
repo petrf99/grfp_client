@@ -4,7 +4,7 @@ import requests
 from werkzeug.serving import make_server
 from flask import Flask, request, jsonify
 
-from client.back.config import BACK_SERV_PORT
+from client.back.config import BACK_SERV_PORT, CLIENT_TCP_PORT
 from client.back.front_communication.front_msg_sender import send_message_to_front, message_queue
 from client.back.gcs_communication.tailscale_connect import connect
 from client.back.state import client_state
@@ -34,36 +34,15 @@ def run_back_server():
     logger.info("Back local server started")
 
 
-def shutdown_back_server():
-    """
-    Gracefully shutdown the local Flask server.
-    """
-    send_message_to_front("Stopping TCP server...")
-    try:
-        res = requests.post(f"http://127.0.0.1:{BACK_SERV_PORT}/shutdown", timeout=3)
-        if res.ok:
-            logger.info("TCP server stopped")
-            send_message_to_front("🔌 TCP server stopped.")
-        return True
-    except requests.exceptions.ConnectionError:
-        logger.error("TCP server not running (already stopped)")
-        send_message_to_front("⚠️ TCP server not running (already stopped).")
-    except Exception as e:
-        logger.error(f"Failed to shutdown TCP server: {e}")
-        send_message_to_front(f"⚠️ Failed to shutdown TCP server: {e}")
-    return False
-
-
 # === Routes ===
-
 @back_app.route("/shutdown", methods=["POST"])
 def shutdown():
     """
     Route to shut down the Flask server and GCS client server.
     """
-    from client.back.gcs_communication.tcp_communication import shutdown_client_server
-    if not shutdown_client_server():
-        send_message_to_front("Could not finish TCP server correctly.")
+    from tech_utils.flask_server_utils import shutdown_server
+    if not shutdown_server("127.0.0.1", CLIENT_TCP_PORT, None, logger=logger):
+        send_message_to_front("Could not finish Client's server correctly.")
     
     global back_server
     if back_server is None:

@@ -37,23 +37,6 @@ def shutdown():
     shutdown_thread.start()
     return jsonify({"status": "ok", "message": "Server shutting down..."})
 
-# Helper function to shut down the client server by calling its shutdown endpoint
-def shutdown_client_server():
-    send_message_to_front("Stopping TCP server...")
-    try:
-        res = requests.post(f"http://localhost:{CLIENT_TCP_PORT}/shutdown", timeout=3)
-        if res.ok:
-            logger.info("TCP server stopped")
-            send_message_to_front("🔌 TCP server stopped.")
-        return True
-    except requests.exceptions.ConnectionError:
-        logger.error("TCP server not running (already stopped)")
-        send_message_to_front("⚠️ TCP server not running (already stopped).")
-    except Exception as e:
-        logger.error(f"Failed to shutdown TCP server: {e}")
-        send_message_to_front(f"⚠️ Failed to shutdown TCP server: {e}")
-    return False
-
 
 # === Main GCS <-> Client communication endpoint ===
 

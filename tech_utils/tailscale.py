@@ -62,7 +62,7 @@ def find_gui_tailscale_path_macos() -> str | None:
                 if os.path.exists(candidate):
                     return candidate
 
-    fallback = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+    fallback = os.getenv("MAC_GUI_TAILSCALE_PATH", "/Applications/Tailscale.app/Contents/MacOS/Tailscale")
     return fallback if os.path.exists(fallback) else None
 
 
@@ -99,7 +99,7 @@ def get_tailscaled_path():
         return path
 
     fallback_paths = [
-        "/Users/peter/.homebrew/bin/tailscaled",  # custom local path
+        str(Path.home() / os.getenv("TAILSCALED_PATH", ".homebrew/bin/tailscaled")),
     ]
     for alt_path in fallback_paths:
         if os.path.exists(alt_path):
@@ -138,20 +138,6 @@ def is_tailscale_installed() -> str | bool:
             return 'macos-gui'
 
     return False
-
-
-def needs_sudo_retry(stderr: str, os_name: str) -> bool:
-    """Check if the error suggests retrying the command with sudo."""
-    if not os_name.startswith(("linux", "darwin")):
-        return False
-    stderr = stderr.lower()
-    return any(msg in stderr for msg in [
-        "failed to connect to local tailscaled",
-        "can't connect",
-        "permission denied",
-        "access denied",
-        "connect: permission denied"
-    ])
 
 # === tailscaled Daemon Handling ===
 
@@ -218,33 +204,13 @@ def tailscale_up(hostname: str, auth_token: str) -> bool:
     try:
         logger.info(f"Starting tailscale for {hostname}")
         safe_subp_run(cmd, retries=3, timeout=5, delay_between_retries=3,
-                      check=True, capture_output=True, text=True, shell=os_name.startswith("win"))
+                      check=True, capture_output=True, text=True, shell=os_name.startswith("win"), enable_sudo_retry=True)
         print("✅ Tailscale started.")
         logger.info(f"{hostname} Tailscale start succeeded on {os_name}")
         return True
 
-    except subprocess.CalledProcessError as e:
-        if needs_sudo_retry(e.stderr or "", os_name):
-            logger.info(f"Retry to start tailscale with sudo for {hostname}")
-            try:
-                sudo_cmd = ["sudo"] + cmd
-                safe_subp_run(sudo_cmd, retries=3, timeout=60, delay_between_retries=3,
-                              check=True, capture_output=True, text=True, shell=False, stdin=sys.stdin)
-                print("✅ Tailscale started with sudo.")
-                logger.info(f"{hostname} Tailscale sudo-start succeeded on {os_name}")
-                return True
-            except subprocess.CalledProcessError as sudo_e:
-                print("❌ Failed to start Tailscale with sudo:", sudo_e)
-                logger.error(f"Tailscale sudo start failed", exc_info=True)
-                return False
-
-        print("❌ Failed to start Tailscale (non-sudo issue):", e)
-        logger.error(f"Tailscale start failed", exc_info=True)
-        return False
-
     except Exception as e:
-        print("❌ Unexpected error while starting Tailscale:", e)
-        logger.exception("Unexpected error during Tailscale start-up")
+        logger.error(f"Tailscale start failed with Exception {e}", exc_info=True)
         return False
 
 
@@ -266,28 +232,13 @@ def tailscale_down():
 
     try:
         safe_subp_run(cmd, retries=3, timeout=5, delay_between_retries=3,
-                      check=True, capture_output=True, text=True, shell=shell_flag)
-        print("✅ Tailscale VPN disconnected (no sudo).")
-        logger.info("Tailscale VPN stopped without sudo")
-
-    except subprocess.CalledProcessError as e:
-        if needs_sudo_retry(e.stderr or "", os_name):
-            try:
-                sudo_cmd = ["sudo"] + cmd
-                safe_subp_run(sudo_cmd, retries=3, timeout=60, delay_between_retries=3,
-                              check=True, capture_output=True, text=True, stdin=sys.stdin)
-                print("✅ Tailscale VPN disconnected (with sudo).")
-                logger.info("Tailscale VPN stopped with sudo")
-            except subprocess.CalledProcessError as sudo_e:
-                print("❌ Failed to disconnect Tailscale with sudo:", sudo_e)
-                logger.error("Tailscale sudo disconnect failed", exc_info=True)
-        else:
-            print("❌ Failed to disconnect Tailscale:", e)
-            logger.error("Tailscale disconnect failed", exc_info=True)
+                      check=True, capture_output=True, text=True, shell=shell_flag, enable_sudo_retry=True)
+        print("✅ Tailscale VPN disconnected.")
+        logger.info("Tailscale VPN disconnected")
 
     except Exception as e:
         print("❌ Unexpected error while disconnecting Tailscale:", e)
-        logger.exception("Unexpected error during Tailscale disconnect")
+        logger.exception(f"Unexpected error during Tailscale disconnect: {e}")
 
     if (not mac_gui_flg and os_name.startswith("darwin")) or os_name.startswith("linux"):
         if stop_tailscaled():
@@ -328,7 +279,8 @@ def get_tailscale_ip_by_hostname(hostname: str, peer_flg: bool = True) -> str | 
         data = json.loads(result.stdout)
 
         if peer_flg:
-            for peer_data in data.get("Peer", {}).values():
+            peers = data.get("Peer", {}) or data.get("Peer[]", {})
+            for peer_data in peers.values():
                 if peer_data.get("HostName", "").split(".")[0] == hostname:
                     ips = peer_data.get("TailscaleIPs", [])
                     ipv4s = [ip for ip in ips if '.' in ip]
