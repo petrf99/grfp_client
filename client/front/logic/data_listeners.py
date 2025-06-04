@@ -2,11 +2,12 @@ import subprocess
 import json
 import time
 import socket
+from tech_utils.safe_subp_run import safe_subp_run
+
+from client.front.config import CLIENT_VID_RECV_PORT
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_UDP_Listeners")
-
-from client.front.config import CLIENT_VID_RECV_PORT
 
 # 📏 Get the video resolution (width x height) from the incoming UDP stream using ffprobe
 def get_video_resolution():
@@ -16,14 +17,23 @@ def get_video_resolution():
         "-select_streams", "v:0",  # select the first video stream
         "-show_entries", "stream=width,height",  # request width and height info
         "-of", "json",  # output format as JSON
-        f"udp://@:{CLIENT_VID_RECV_PORT}"  # video source: UDP stream on specified port
+        f"udp://@:{CLIENT_VID_RECV_PORT}?timeout=5000000"  # video source: UDP stream on specified port
     ]
 
-    out = subprocess.run(cmd, capture_output=True)
-    info = json.loads(out.stdout)
-    w = info['streams'][0]['width']
-    h = info['streams'][0]['height']
-    return w, h
+    n_attempts = 1000
+    k = 0
+    info = None
+    while (not info or not isinstance(info, dict) or "streams" not in info) and k <= n_attempts:
+        out = safe_subp_run(cmd, retries=100, timeout=10, check=True, capture_output=True)
+        info = json.loads(out.stdout)
+        if not info or not isinstance(info, dict) or "streams" not in info:
+            logger.error("Can't get video resolution.")
+            k += 1
+            continue
+        w = info['streams'][0]['width']
+        h = info['streams'][0]['height']
+        logger.info(f"Video resolution {w}x{h} obtained")
+        return w, h
 
 
 # 🎥 Connect to the local UDP video port and start receiving raw video frames via ffmpeg

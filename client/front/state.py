@@ -16,8 +16,14 @@ class FrontState:
         self.tailscale_disconnect_event = threading.Event()
         self.poll_back_event = threading.Event()
 
+        self.user_id = None
+
         self.abort_event = threading.Event()
         self.finish_event = threading.Event()
+
+        self.login_screen = None
+        self.main_screen = None
+        self.flight_screen = None
 
     def clear(self):
         self.session_id = None

@@ -6,7 +6,7 @@ from client.front.logic.back_listener import back_polling
 from client.front.config import HELP_FILE_PATH, BACK_SERV_PORT
 from tech_utils.cli_input import input_with_back
 from tech_utils.safe_post_req import post_request
-from client.front.gui.gui_loop import gui_loop
+from client.front.flight_screen.gui.gui_loop import gui_loop
 from tech_utils.logger import init_logger
 
 logger = init_logger("Front_Handlers")

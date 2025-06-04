@@ -29,7 +29,7 @@ def connect(mission_id: str) -> bool:
     """
     client_state.mission_id = mission_id
     if not get_vpn_connection():
-        send_message_to_front("ts-disconnected ❌ Couldn't obtain VPN credentials")
+        send_message_to_front("ts-disconnected ❌ Tailscale connect failed")
         return False
 
     return start_tailscale()

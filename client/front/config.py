@@ -10,6 +10,9 @@ CLIENT_TLMT_RECV_PORT=int(os.getenv("CLIENT_TLMT_RECV_PORT"))
 GCS_RC_RECV_PORT=int(os.getenv("GCS_RC_RECV_PORT"))
 UDP_SEND_LOG_DELAY = 3
 
+# === RFD Missions manager params ===
+RFD_MM_URL='http://188.245.79.193:8000'
+
 # === Константы каналов ===
 RC_CHANNELS_DEFAULTS = {
     "ch1": 1500,  # roll (← →)
@@ -54,4 +57,4 @@ BACK_POLLING_INTERVAL=0.5
 HELP_FILE_PATH="client/settings/help.txt"
 CONTROLLER_PATH="client/settings/controller.txt"
 
-BACKEND_CONTROLLER = ['gamepad', 'rc_controller']
+BACKEND_CONTROLLER = []

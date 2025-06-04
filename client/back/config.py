@@ -51,7 +51,7 @@ RC_CHANNELS_DEFAULTS = {
 
 # Controllers list
 CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'rc_controller']
-BACKEND_CONTROLLER = ['gamepad', 'rc_controller']
+BACKEND_CONTROLLER = []
 DEFAULT_CONTROLLER = 'keyboard'
 CONTROLLER_PATH="client/settings/controller.txt"
 

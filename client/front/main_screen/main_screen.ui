@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWidget</class>
+ <widget class="QWidget" name="MainWidget">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>600</width><height>500</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Mission Control</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+
+   <!-- Scroll area for mission cards -->
+   <item>
+    <widget class="QScrollArea" name="scrollArea">
+     <property name="widgetResizable"><bool>true</bool></property>
+     <widget class="QWidget" name="scrollAreaWidgetContents">
+      <layout class="QVBoxLayout" name="missionsLayout"/>
+     </widget>
+    </widget>
+   </item>
+
+   <!-- Launch / Abort buttons -->
+   <item>
+    <layout class="QHBoxLayout" name="controlLayout">
+     <item>
+      <widget class="QPushButton" name="pushButtonLaunch">
+       <property name="text"><string>Launch Session</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButtonAbort">
+       <property name="text"><string>Abort Session</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+
+   <!-- Log output -->
+   <item>
+    <widget class="QTextEdit" name="textEditLog">
+     <property name="readOnly"><bool>true</bool></property>
+     <property name="placeholderText">
+      <string>System messages will appear here…</string>
+     </property>
+    </widget>
+   </item>
+
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

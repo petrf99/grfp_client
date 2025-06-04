@@ -67,28 +67,28 @@ def back_polling():
                     )
 
                 elif message.startswith("session-request"):
-                    print(f"\n👋 GCS {extract_ip(message)} requests a session.\nType 'launch' to start or 'abort' to cancel it")
+                    front_state.main_screen.append_log(f"👋 GCS {extract_ip(message)} requests a session.\Click 'launch' to start or 'abort' to cancel it")
                     front_state.session_id = extract_uuid4(message)
 
                 elif message.startswith("ts-connected"):
+                    front_state.tailscale_connected_event.set()
                     front_state.tailscale_disconnect_event.set() # To give time for event waiter to release execution
                     time.sleep(0.2) # To give time for event waiter to release execution
-                    front_state.tailscale_connected_event.set()
                     front_state.tailscale_disconnect_event.clear()
-                    print(" ".join(message.split(" ")[1:]))
+                    front_state.main_screen.append_log(" ".join(message.split(" ")[1:]))
 
                 elif message.startswith("ts-disconnected"):
+                    front_state.tailscale_disconnect_event.set()
                     front_state.tailscale_connected_event.set() # To give time for event waiter to release execution
                     time.sleep(0.2) # To give time for event waiter to release execution
-                    front_state.tailscale_disconnect_event.set()
                     front_state.tailscale_connected_event.clear()
-                    print(" ".join(message.split(" ")[1:]))
+                    front_state.main_screen.append_log(" ".join(message.split(" ")[1:]))
 
                 else:
-                    logger.warning(f"Polling exception: {e}")
-                    print(message)
+                    front_state.main_screen.append_log(message)
 
         except Exception as e:
+            logger.warning(f"Polling exception: {e}")
             time.sleep(2)
 
         time.sleep(BACK_POLLING_INTERVAL)
