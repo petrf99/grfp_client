@@ -4,5 +4,6 @@ requests
 flask
 opencv-python
 cryptography
+pyside6
 pytest
 pytest-flask

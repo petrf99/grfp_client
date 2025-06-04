@@ -71,11 +71,15 @@ def back_polling():
                     front_state.session_id = extract_uuid4(message)
 
                 elif message.startswith("ts-connected"):
+                    front_state.tailscale_disconnect_event.set() # To give time for event waiter to release execution
+                    time.sleep(0.2) # To give time for event waiter to release execution
                     front_state.tailscale_connected_event.set()
                     front_state.tailscale_disconnect_event.clear()
                     print(" ".join(message.split(" ")[1:]))
 
                 elif message.startswith("ts-disconnected"):
+                    front_state.tailscale_connected_event.set() # To give time for event waiter to release execution
+                    time.sleep(0.2) # To give time for event waiter to release execution
                     front_state.tailscale_disconnect_event.set()
                     front_state.tailscale_connected_event.clear()
                     print(" ".join(message.split(" ")[1:]))

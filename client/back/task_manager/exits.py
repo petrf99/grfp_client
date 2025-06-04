@@ -53,6 +53,10 @@ def local_close_sess(finish_flg=False):
 
 # Disconnect from Tailscale, delete local RSA keys
 def disconnect():
+    # Close session if it is
+    if client_state.session_id:
+        local_close_sess()
+        
     # Stop Tailscale network
     tailscale_down()
     send_message_to_front("ts-disconnected 👌 Tailscale disconnected")
