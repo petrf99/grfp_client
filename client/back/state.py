@@ -46,27 +46,9 @@ class SessionState:
 
         # === Controller configuration ===
         self.controller = None
-        self._load_controller_config()
 
         # === Signal to stop the backend thread from frontend ===
         self.stop_back_event = threading.Event()
-
-    def _load_controller_config(self):
-        """
-        Load controller preference from disk or write default if not found.
-        """
-        if os.path.exists(CONTROLLER_PATH):
-            with open(CONTROLLER_PATH, "r") as f:
-                controller_name = f.read().strip()
-                if controller_name in CONTROLLERS_LIST:
-                    self.controller = controller_name
-        else:
-            os.makedirs(os.path.dirname(CONTROLLER_PATH), exist_ok=True)
-
-        if self.controller is None:
-            with open(CONTROLLER_PATH, "w") as f:
-                f.write(DEFAULT_CONTROLLER)
-            self.controller = DEFAULT_CONTROLLER
 
     def clear(self):
         """

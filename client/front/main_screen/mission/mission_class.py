@@ -12,6 +12,8 @@ class MissionWidget(QWidget):
 
         self.mission_id = mission_data['mission_id']
 
+        self.button_pressed_flg = False
+
         # Fill data from mission_data
         self.ui.labelDroneType.setText(f"Drone: {mission_data['drone_type']}")
         self.ui.labelLocation.setText(f"Location: {mission_data['location']}")
@@ -25,21 +27,27 @@ class MissionWidget(QWidget):
 
     def toggle_connection(self):
         # Connect/disconnect to Tailnet
-        if not front_state.tailscale_connected_event.is_set():
+        if not front_state.tailscale_connected_event.is_set() and not self.button_pressed_flg:
             res = post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-connect", {"mission_id": self.mission_id}, f"Front2Back: Connect with mission {self.mission_id}")
             if res:
                 front_state.main_screen.append_log("You are being connected to Tailnet. Please wait...")
-                front_state.tailscale_connected_event.wait()
-                if front_state.tailscale_disconnect_event.is_set():
-                    self.ui.pushButtonConnect.setText("Disconnect")
+                front_state.active_mission = self
+                self.button_pressed_flg = True
             else:
                 front_state.main_screen.append_log("Couldn't connect to Tailnet. Please contact admin.")
-        else:
+        elif not self.button_pressed_flg:
             res = post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-disconnect", {}, "Front2Back: Disconnect")
             if res:
                 front_state.main_screen.append_log("Waiting for Tailscale to disconnect...")
-                front_state.tailscale_disconnect_event.wait()
-                if front_state.tailscale_connected_event.is_set():
-                    self.ui.pushButtonConnect.setText("Connect")
+                self.button_pressed_flg = True
             else:
                 front_state.main_screen.append_log("Failed to disconnect")
+        else:
+            front_state.main_screen.append_log("Your previous request is being handled. Please wait")
+
+    def toggle_button_text(self):
+        if front_state.tailscale_connected_event.is_set():
+            self.ui.pushButtonConnect.setText("Disconnect")
+        elif front_state.tailscale_disconnect_event.is_set():
+                    self.ui.pushButtonConnect.setText("Connect")
+        self.button_pressed_flg = False

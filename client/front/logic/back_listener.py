@@ -67,21 +67,20 @@ def back_polling():
                     )
 
                 elif message.startswith("session-request"):
-                    front_state.main_screen.append_log(f"👋 GCS {extract_ip(message)} requests a session.\Click 'launch' to start or 'abort' to cancel it")
+                    front_state.main_screen.append_log(f"👋 GCS {extract_ip(message)} requests a session. Click 'launch' to start or 'abort' to cancel it")
                     front_state.session_id = extract_uuid4(message)
 
                 elif message.startswith("ts-connected"):
                     front_state.tailscale_connected_event.set()
-                    front_state.tailscale_disconnect_event.set() # To give time for event waiter to release execution
-                    time.sleep(0.2) # To give time for event waiter to release execution
                     front_state.tailscale_disconnect_event.clear()
+                    front_state.active_mission.toggle_button_text()
                     front_state.main_screen.append_log(" ".join(message.split(" ")[1:]))
 
                 elif message.startswith("ts-disconnected"):
                     front_state.tailscale_disconnect_event.set()
-                    front_state.tailscale_connected_event.set() # To give time for event waiter to release execution
-                    time.sleep(0.2) # To give time for event waiter to release execution
                     front_state.tailscale_connected_event.clear()
+                    front_state.active_mission.toggle_button_text()
+                    front_state.active_mission = None
                     front_state.main_screen.append_log(" ".join(message.split(" ")[1:]))
 
                 else:

@@ -14,12 +14,11 @@ sock = get_socket()
 _last_log_map = {}
 
 
-def send_rc_frame(sock, session_id, rc_state, source):
+def send_rc_frame(session_id, rc_state, source):
     """
     Sends RC (Remote Control) state to the backend over UDP.
 
     Args:
-        sock: The pre-initialized UDP socket.
         session_id (str): Unique identifier for the current session.
         rc_state (dict): The RC control values to send.
         source (str): The controller type or source ID (unused here but could be logged).
@@ -28,7 +27,7 @@ def send_rc_frame(sock, session_id, rc_state, source):
         - Converts the RC state to JSON and sends it over UDP to the backend.
         - Logs the frame send only if sufficient time has passed since the last log.
     """
-    global _last_log_map
+    global _last_log_map, sock
     now = time.time()
     json_data = json.dumps(rc_state).encode('utf-8')
 

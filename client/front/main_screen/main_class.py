@@ -3,6 +3,7 @@ from client.front.main_screen.mission.mission_class import MissionWidget
 from PySide6.QtCore import Qt
 from client.front.main_screen.ui_main import Ui_MainWidget
 from datetime import datetime
+import time
 from tech_utils.safe_post_req import post_request
 from client.front.config import BACK_SERV_PORT, RFD_MM_URL
 from client.front.state import front_state
@@ -26,6 +27,9 @@ class MainScreen(QWidget):
         self.ui.setupUi(self)
         self.stack = stack
 
+        self.mission_list = []
+        self.mission_widgets = []
+
         self.ui.pushButtonLaunch.clicked.connect(self.launch_sess)
         self.ui.pushButtonAbort.clicked.connect(self.abort_sess)
     
@@ -33,27 +37,33 @@ class MainScreen(QWidget):
         super().showEvent(event)
 
         mission_list = get_missions()
-        logger.debug(f"{mission_list}")
-        if not mission_list:
-            self.append_log("No missions received.")
-            return
+        if mission_list != self.mission_list:
+            if not mission_list:
+                self.append_log("No missions received.")
+                logger.warning("No missions received")
+                return
 
-        layout = self.ui.scrollAreaWidgetContents.layout()
-        if layout is None:
-            self.append_log("Error: layout not found")
-            return
+            layout = self.ui.scrollAreaWidgetContents.layout()
+            if layout is None:
+                self.append_log("Error: layout not found")
+                logger.error("Layer not found")
+                return
 
-        for mission in mission_list:
-            widget = MissionWidget(mission)
+            for mission in mission_list:
+                if mission not in self.mission_list:
+                    widget = MissionWidget(mission)
+                    self.mission_widgets.append(widget)
 
-            # Оборачиваем в контейнер для центровки и отступа
-            wrapper = QWidget()
-            layout = QHBoxLayout(wrapper)
-            layout.setContentsMargins(0, 0, 0, 20)  # отступ снизу
-            layout.setAlignment(Qt.AlignHCenter)
-            layout.addWidget(widget)
+                    # Оборачиваем в контейнер для центровки и отступа
+                    wrapper = QWidget()
+                    layout = QHBoxLayout(wrapper)
+                    layout.setContentsMargins(0, 0, 0, 20)  # отступ снизу
+                    layout.setAlignment(Qt.AlignHCenter)
+                    layout.addWidget(widget)
 
-            self.ui.missionsLayout.addWidget(wrapper)
+                    self.ui.missionsLayout.addWidget(wrapper)
+
+            self.mission_list = mission_list
 
 
 
@@ -66,7 +76,9 @@ class MainScreen(QWidget):
 
     def abort_sess(self):
         if front_state.session_id:
+            front_state.abort_event.set()
             post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": 'abort'}, f"Front2Back: {'abort'} session")
+            time.sleep(0.1)
             front_state.clear()
         else:
             front_state.main_screen.append_log("No active session to abort")
@@ -74,9 +86,6 @@ class MainScreen(QWidget):
     def launch_sess(self):
         if front_state.session_id:
             post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-launch-session", {}, "Front2Back: Launch session")
-            import threading
-            from client.front.flight_screen.gui.gui_loop import gui_loop
-            threading.Thread(target=gui_loop, daemon=True).start()
             self.stack.setCurrentIndex(2)
         else:
             front_state.main_screen.append_log("No session to launch")

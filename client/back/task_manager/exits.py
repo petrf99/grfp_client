@@ -17,6 +17,9 @@ def local_close_sess(finish_flg=False):
     status = ABORT_MSG
     if finish_flg:
         status = FINISH_MSG
+        client_state.finish_event.set()
+    else:
+        client_state.abort_event.set()
 
     try:
         # If GCS has not externally closed the session, notify it
@@ -40,9 +43,8 @@ def local_close_sess(finish_flg=False):
 
     time.sleep(0.5)
 
-    # Revoke VPN credentials if they exist
-    if client_state.token:
-        delete_vpn_connection()
+    # Disconnect from Tailnet
+    disconnect(True)
 
     # Clear session state
     client_state.clear()
@@ -52,10 +54,14 @@ def local_close_sess(finish_flg=False):
 
 
 # Disconnect from Tailscale, delete local RSA keys
-def disconnect():
+def disconnect(call_from_close_sess=False):
     # Close session if it is
-    if client_state.session_id:
+    if not call_from_close_sess and client_state.session_id:
         local_close_sess()
+
+    # Revoke VPN credentials if they exist
+    if client_state.token:
+        delete_vpn_connection()
         
     # Stop Tailscale network
     tailscale_down()
