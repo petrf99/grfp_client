@@ -36,6 +36,96 @@
     </layout>
    </item>
 
+    <item>
+    <layout class="QHBoxLayout" name="controllerSetupRow">
+        
+        <!-- Controller -->
+        <item>
+        <layout class="QHBoxLayout" name="controllerLayout">
+            <item>
+            <widget class="QLabel" name="labelController">
+                <property name="text">
+                <string>Controller:</string>
+                </property>
+            </widget>
+            </item>
+            <item>
+            <widget class="QComboBox" name="comboBoxControllers"/>
+            </item>
+        </layout>
+        </item>
+
+        <!-- Spacer between Controller and Sensitivity -->
+        <item>
+        <spacer name="horizontalSpacer1">
+            <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+            <enum>QSizePolicy::Expanding</enum>
+            </property>
+        </spacer>
+        </item>
+
+        <!-- Sensitivity -->
+        <item>
+        <layout class="QHBoxLayout" name="sensitivityGroupLayout">
+            <item>
+            <widget class="QLabel" name="labelSensitivity">
+                <property name="text">
+                <string>Sensitivity:</string>
+                </property>
+            </widget>
+            </item>
+            <item>
+            <widget class="QSlider" name="sliderSensitivity">
+                <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="minimumWidth">
+                <number>120</number>
+                </property>
+                <property name="maximumWidth">
+                <number>120</number>
+                </property>
+                <property name="minimum">
+                <number>1</number>
+                </property>
+                <property name="maximum">
+                <number>100</number>
+                </property>
+            </widget>
+            </item>
+        </layout>
+        </item>
+
+        <!-- Spacer between Sensitivity and Save button -->
+        <item>
+        <spacer name="horizontalSpacer2">
+            <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+            <enum>QSizePolicy::Expanding</enum>
+            </property>
+        </spacer>
+        </item>
+
+        <!-- Save as default button -->
+        <item>
+        <widget class="QPushButton" name="pushButtonSaveControllerDefaults">
+            <property name="text">
+            <string>Save as default</string>
+            </property>
+            <property name="maximumWidth">
+            <number>130</number>
+            </property>
+        </widget>
+        </item>
+
+    </layout>
+    </item>
+
    <!-- Log output -->
    <item>
     <widget class="QTextEdit" name="textEditLog">

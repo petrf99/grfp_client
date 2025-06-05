@@ -27,23 +27,23 @@ class KeyboardInputQt(BaseRCInput):
         if key in self.pressed_keys:
             self.pressed_keys.remove(key)
 
-    def read_frame(self, rc_state):
+    def read_frame(self, rc_state, sensitiviy):
         if Qt.Key_W in self.pressed_keys:
-            rc_state["ch3"] = min(rc_state["ch3"] + STEP_ANALOG, LIMIT_MAX)
+            rc_state["ch3"] = min(rc_state["ch3"] + int(sensitiviy * STEP_ANALOG), LIMIT_MAX)
         if Qt.Key_S in self.pressed_keys:
-            rc_state["ch3"] = max(rc_state["ch3"] - STEP_ANALOG, LIMIT_MIN)
+            rc_state["ch3"] = max(rc_state["ch3"] - int(sensitiviy * STEP_ANALOG), LIMIT_MIN)
         if Qt.Key_A in self.pressed_keys:
-            rc_state["ch4"] = max(rc_state["ch4"] - STEP_ANALOG, LIMIT_MIN)
+            rc_state["ch4"] = max(rc_state["ch4"] - int(sensitiviy * STEP_ANALOG), LIMIT_MIN)
         if Qt.Key_D in self.pressed_keys:
-            rc_state["ch4"] = min(rc_state["ch4"] + STEP_ANALOG, LIMIT_MAX)
+            rc_state["ch4"] = min(rc_state["ch4"] + int(sensitiviy * STEP_ANALOG), LIMIT_MAX)
 
         if Qt.Key_Left in self.pressed_keys:
-            rc_state["ch1"] = max(rc_state["ch1"] - STEP_ANALOG, LIMIT_MIN)
+            rc_state["ch1"] = max(rc_state["ch1"] - int(sensitiviy * STEP_ANALOG), LIMIT_MIN)
         if Qt.Key_Right in self.pressed_keys:
-            rc_state["ch1"] = min(rc_state["ch1"] + STEP_ANALOG, LIMIT_MAX)
+            rc_state["ch1"] = min(rc_state["ch1"] + int(sensitiviy * STEP_ANALOG), LIMIT_MAX)
         if Qt.Key_Up in self.pressed_keys:
-            rc_state["ch2"] = min(rc_state["ch2"] + STEP_ANALOG, LIMIT_MAX)
+            rc_state["ch2"] = min(rc_state["ch2"] + int(sensitiviy * STEP_ANALOG), LIMIT_MAX)
         if Qt.Key_Down in self.pressed_keys:
-            rc_state["ch2"] = max(rc_state["ch2"] - STEP_ANALOG, LIMIT_MIN)
+            rc_state["ch2"] = max(rc_state["ch2"] - int(sensitiviy * STEP_ANALOG), LIMIT_MIN)
 
         return rc_state

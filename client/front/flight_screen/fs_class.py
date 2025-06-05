@@ -23,11 +23,11 @@ class FlightScreen(QWidget):
 
         self.frame = None
         self.telemetry = {}
+        self.rc_state = RC_CHANNELS_DEFAULTS.copy()
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_gui)
 
-        self.rc_state = RC_CHANNELS_DEFAULTS.copy()
         self.setFocusPolicy(Qt.StrongFocus)  # Позволяет получать события клавиатуры
         self.setMouseTracking(True)  # Чтобы получать mouseMove без нажатия кнопки
 
@@ -56,6 +56,7 @@ class FlightScreen(QWidget):
             front_state.clear()
             self.timer.stop()
             self.frame = None
+            self.rc_state = RC_CHANNELS_DEFAULTS.copy()
             self.telemetry = {}
             self.stack.setCurrentIndex(1)
         elif front_state.controller in ['keyboard', 'mouse_keyboard']:
@@ -76,7 +77,7 @@ class FlightScreen(QWidget):
             pixmap = QPixmap.fromImage(image)
             self.ui.labelVideoFrame.setPixmap(pixmap)
         # Upd and send RC data
-        self.rc_state = front_state.rc_input.read_frame(self.rc_state)
+        self.rc_state = front_state.rc_input.read_frame(self.rc_state, front_state.sensitivity)
         send_rc_frame(front_state.session_id, self.rc_state, front_state.controller)
 
         # 📡 Draw telemetry HUD

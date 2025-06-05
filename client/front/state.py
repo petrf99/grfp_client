@@ -22,8 +22,19 @@ class FrontState:
         self.flight_screen = None
 
         self.controller = None
+        self.sensitivity = 1
+        self.rc_input = None
         self._load_controller_config()
+        self.set_controller()
+
+    def set_controller(self, controller = None):
+        if controller and controller in CONTROLLERS_LIST:
+            print(1)
+            self.controller = controller
+        elif controller:
+            return False
         self.rc_input = None if self.controller in BACKEND_CONTROLLER else get_rc_input(self.controller)
+        return True
 
     def _load_controller_config(self):
         """
@@ -31,7 +42,10 @@ class FrontState:
         """
         if os.path.exists(CONTROLLER_PATH):
             with open(CONTROLLER_PATH, "r") as f:
-                controller_name = f.read().strip()
+                settings = f.read().strip().split("\n")
+                controller_name = settings[0]
+                if len(settings) > 1:
+                    self.sensitivity = float(settings[1])
                 if controller_name in CONTROLLERS_LIST:
                     self.controller = controller_name
         else:
@@ -39,8 +53,9 @@ class FrontState:
 
         if self.controller is None:
             with open(CONTROLLER_PATH, "w") as f:
-                f.write(DEFAULT_CONTROLLER)
+                f.write(DEFAULT_CONTROLLER + '\n' + str(self.sensitivity))
             self.controller = DEFAULT_CONTROLLER
+
 
     def clear(self):
         self.session_id = None

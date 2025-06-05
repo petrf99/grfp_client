@@ -5,7 +5,7 @@ from client.front.main_screen.ui_main import Ui_MainWidget
 from datetime import datetime
 import time
 from tech_utils.safe_post_req import post_request
-from client.front.config import BACK_SERV_PORT, RFD_MM_URL
+from client.front.config import BACK_SERV_PORT, RFD_MM_URL, CONTROLLERS_LIST, CONTROLLER_PATH
 from client.front.state import front_state
 
 from tech_utils.logger import init_logger
@@ -25,6 +25,16 @@ class MainScreen(QWidget):
         super().__init__()
         self.ui = Ui_MainWidget()
         self.ui.setupUi(self)
+
+        self.ui.comboBoxControllers.addItems(CONTROLLERS_LIST)
+        self.ui.comboBoxControllers.currentTextChanged.connect(self.on_controller_selected)
+        self.ui.sliderSensitivity.valueChanged.connect(self.on_sensitivity_changed)
+        self.ui.pushButtonSaveControllerDefaults.clicked.connect(self.save_def_contr_set)
+        index = self.ui.comboBoxControllers.findText(front_state.controller)
+        if index >= 0:
+            self.ui.comboBoxControllers.setCurrentIndex(index)
+        self.ui.sliderSensitivity.setValue(front_state.sensitivity*50)
+
         self.stack = stack
 
         self.mission_list = []
@@ -32,6 +42,7 @@ class MainScreen(QWidget):
 
         self.ui.pushButtonLaunch.clicked.connect(self.launch_sess)
         self.ui.pushButtonAbort.clicked.connect(self.abort_sess)
+
     
     def showEvent(self, event):
         super().showEvent(event)
@@ -50,7 +61,7 @@ class MainScreen(QWidget):
                 return
 
             for mission in mission_list:
-                if mission not in self.mission_list:
+                if mission not in self.mission_list and mission['status'] == 'in progress':
                     widget = MissionWidget(mission)
                     self.mission_widgets.append(widget)
 
@@ -65,7 +76,19 @@ class MainScreen(QWidget):
 
             self.mission_list = mission_list
 
+    def on_controller_selected(self, controller):
+        if front_state.set_controller(controller):
+            self.append_log(f"Controller {controller} selected")
+        else:
+            self.append_log(f"Can't select controller {controller} - invalid value")
 
+    def on_sensitivity_changed(self, value):
+        front_state.sensitivity = value / 50.
+
+    def save_def_contr_set(self):
+        with open(CONTROLLER_PATH, "w") as f:
+                f.write(front_state.controller + '\n' + str(front_state.sensitivity))
+        self.append_log(f"Controller {front_state.controller} and sensitivity value {front_state.sensitivity} have been set as defaults.")
 
     def append_log(self, message: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
