@@ -14,6 +14,7 @@ logger = init_logger("Back_BasicCmds")
 # Gracefully close a session, notify GCS, clean up state
 def local_close_sess(finish_flg=False):
     send_message_to_front("Closing session...")
+    logger.info("Closing session")
     status = ABORT_MSG
     if finish_flg:
         status = FINISH_MSG
@@ -45,6 +46,7 @@ def local_close_sess(finish_flg=False):
     # Clear session state
     client_state.clear()
     send_message_to_front("Session closed")
+    logger.info(f"Session closed")
 
     return True
 

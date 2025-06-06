@@ -58,6 +58,8 @@ def back_polling():
                         description="Front2Back: abort session"
                     )
                     front_state.clear()
+                    front_state.flight_screen.reset_flight_screen()
+                    logger.info("Back to main screen command sent")
 
                 elif message == "finish":
                     logger.info("Finish command received from backend.")
@@ -67,6 +69,8 @@ def back_polling():
                         description="Front2Back: finish session"
                     )
                     front_state.clear()
+                    front_state.flight_screen.reset_flight_screen()
+                    logger.info("Back to main screen command sent")
 
                 elif message.startswith("session-request"):
                     front_state.main_screen.append_log(f"👋 GCS {extract_ip(message)} requests a session. Click 'launch' to start or 'abort' to cancel it")

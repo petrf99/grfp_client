@@ -95,7 +95,7 @@ def send_start_message_to_gcs():
         description="GCS Handshake",
         retries=NUM_START_SESS_ATTEMPTS,
         timeout=START_SESS_POLL_INTERVAL,
-        event_to_set=None,
+        event_to_set=client_state.running_event,
         print_func=send_message_to_front,
         message="📡 Waiting for a Handshake with GCS"
     )
@@ -126,6 +126,7 @@ def keep_connection():
             if res.status_code == 200:
                 logger.info(f"{client_state} Ping to GCS successful")
                 fails = 0
+                time.sleep(PING_INTERVAL)
                 continue
             else:
                 logger.warning(f"{client_state} Ping to GCS failed. Status_code: {res.status_code}")
@@ -136,6 +137,7 @@ def keep_connection():
             fails += 1
             send_message_to_front("⚠️ Connection with GCS went wrong, retrying...")
         else:
+            time.sleep(PING_INTERVAL)
             continue
 
         # Too many failed attempts, consider connection lost
@@ -146,6 +148,7 @@ def keep_connection():
             break
 
         time.sleep(PING_INTERVAL)
+
     
     logger.info(f"Finished keep-connection thread for session {client_state}")
 

@@ -1,5 +1,5 @@
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt, QMetaObject, Slot
 from PySide6.QtWidgets import QStackedWidget, QSizePolicy
 from client.front.flight_screen.ui_flight import Ui_FlightScreen
 from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT
@@ -45,6 +45,13 @@ class FlightScreen(QWidget):
         self.setFocus()
         threading.Thread(target=loop, daemon=True).start()
 
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self.timer.stop()
+        self.frame = None
+        self.rc_state = RC_CHANNELS_DEFAULTS.copy()
+        self.telemetry = {}
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.telemetry_overlay.setGeometry(self.rect())
@@ -58,15 +65,19 @@ class FlightScreen(QWidget):
         if front_state.controller == 'mouse_keyboard':
             front_state.rc_input.update_mouse_position(event.pos())
 
+
+    @Slot()
+    def switch_to_screen_1(self):
+        self.stack.setCurrentIndex(1)
+
+    def reset_flight_screen(self):
+        QMetaObject.invokeMethod(self, "switch_to_screen_1", Qt.QueuedConnection)
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             result = 'finish' if front_state.running_event.is_set() else 'abort'
             post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": result}, f"Front2Back: {result} session")
-            self.timer.stop()
-            self.frame = None
-            self.rc_state = RC_CHANNELS_DEFAULTS.copy()
-            self.telemetry = {}
-            self.stack.setCurrentIndex(1)
+            self.reset_flight_screen()
             front_state.clear()
         elif front_state.controller in ['keyboard', 'mouse_keyboard']:
             self.rc_state = front_state.rc_input.handle_key_press(event, self.rc_state)

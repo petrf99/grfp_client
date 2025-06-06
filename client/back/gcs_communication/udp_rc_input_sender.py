@@ -31,7 +31,7 @@ def stream_rc_to_gcs():
     last_inp_log_time = 0  # Timestamp of last log to avoid spamming
 
     try:
-        # Main loop: runs until session is finished or aborted
+        # Main loop: runs while session is running
         while client_state.running_event.is_set():
             cur_time = time.time()
 
