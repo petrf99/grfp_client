@@ -53,13 +53,13 @@ HUD_MARGIN = 30
 
 # Local settings
 BACK_SERV_PORT=int(os.getenv("BACK_SERV_PORT"))
+BACK_UDP_PORT=int(os.getenv("BACK_UDP_PORT"))
 BACK_POLLING_INTERVAL=0.5
 
 HELP_FILE_PATH="client/settings/help.txt"
-CONTROLLER_PATH="client/settings/controller.txt"
+CONTROLLER_PATH="client/settings/controller.json"
 
 # Controllers list
 CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'rc_controller']
 BACKEND_CONTROLLER = []
 DEFAULT_CONTROLLER = 'keyboard'
-CONTROLLER_PATH="client/settings/controller.txt"

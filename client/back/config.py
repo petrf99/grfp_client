@@ -53,7 +53,8 @@ RC_CHANNELS_DEFAULTS = {
 CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'rc_controller']
 BACKEND_CONTROLLER = []
 DEFAULT_CONTROLLER = 'keyboard'
-CONTROLLER_PATH="client/settings/controller.txt"
+CONTROLLER_PATH="client/settings/controller.json"
 
 # Local ports
 BACK_SERV_PORT=int(os.getenv("BACK_SERV_PORT"))
+BACK_UDP_PORT=int(os.getenv("BACK_UDP_PORT"))

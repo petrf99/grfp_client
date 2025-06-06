@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 from client.front.main_screen.ui_main import Ui_MainWidget
 from datetime import datetime
 import time
+import json
 from tech_utils.safe_post_req import post_request
 from client.front.config import BACK_SERV_PORT, RFD_MM_URL, CONTROLLERS_LIST, CONTROLLER_PATH
 from client.front.state import front_state
@@ -86,8 +87,12 @@ class MainScreen(QWidget):
         front_state.sensitivity = value / 50.
 
     def save_def_contr_set(self):
+        config = {
+                "controller": front_state.controller,
+                "sensitivity": front_state.sensitivity
+            }
         with open(CONTROLLER_PATH, "w") as f:
-                f.write(front_state.controller + '\n' + str(front_state.sensitivity))
+            json.dump(config, f, indent=2)
         self.append_log(f"Controller {front_state.controller} and sensitivity value {front_state.sensitivity} have been set as defaults.")
 
     def append_log(self, message: str):

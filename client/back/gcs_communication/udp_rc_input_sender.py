@@ -5,7 +5,7 @@ import socket
 from tech_utils.logger import init_logger
 logger = init_logger("Back_RC_Streamer")
 
-from client.back.config import BACKEND_CONTROLLER, GCS_RC_RECV_PORT, RC_CHANNELS_DEFAULTS, UDP_SEND_LOG_DELAY
+from client.back.config import BACKEND_CONTROLLER, BACK_UDP_PORT, RC_CHANNELS_DEFAULTS, UDP_SEND_LOG_DELAY
 from tech_utils.udp import get_socket
 from client.back.state import client_state
 from client.back.front_communication.front_msg_sender import send_message_to_front
@@ -22,7 +22,7 @@ def stream_rc_to_gcs():
     if client_state.controller not in BACKEND_CONTROLLER:
         logger.info("Assigned to restream RC from Front")
         front_rc_flg = True
-        sock = get_socket("0.0.0.0", GCS_RC_RECV_PORT, bind=True)
+        sock = get_socket("0.0.0.0", BACK_UDP_PORT, bind=True)
     else:
         # If controller is local (backend), prepare to send RC data
         sock = get_socket(host=None, port=None, bind=False)

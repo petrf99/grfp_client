@@ -3,10 +3,7 @@ import os
 
 from client.back.config import (
     CLIENT_TLMT_RECV_PORT,
-    CLIENT_VID_RECV_PORT,
-    CONTROLLERS_LIST,
-    DEFAULT_CONTROLLER,
-    CONTROLLER_PATH
+    CLIENT_VID_RECV_PORT
 )
 
 

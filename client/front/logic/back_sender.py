@@ -1,7 +1,7 @@
 import json
 import time
 
-from client.front.config import UDP_SEND_LOG_DELAY, GCS_RC_RECV_PORT
+from client.front.config import UDP_SEND_LOG_DELAY, BACK_UDP_PORT
 from tech_utils.udp import get_socket
 from tech_utils.logger import init_logger
 
@@ -32,11 +32,11 @@ def send_rc_frame(session_id, rc_state, source):
     json_data = json.dumps(rc_state).encode('utf-8')
 
     try:
-        sock.sendto(json_data, ("127.0.0.1", GCS_RC_RECV_PORT))
+        sock.sendto(json_data, ("127.0.0.1", BACK_UDP_PORT))
 
         last_logged = _last_log_map.get(session_id, 0)
         if now - last_logged >= UDP_SEND_LOG_DELAY:
-            logger.info(f"RC frame sent to 127.0.0.1:{GCS_RC_RECV_PORT} JSON: {rc_state}")
+            logger.info(f"RC frame sent to 127.0.0.1:{BACK_UDP_PORT} JSON: {rc_state}")
             _last_log_map[session_id] = now
 
     except Exception as e:
