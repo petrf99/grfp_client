@@ -44,7 +44,8 @@ def local_close_sess(finish_flg=False):
     time.sleep(0.5)
 
     # Disconnect from Tailnet
-    disconnect(True)
+    if client_state.token:
+        disconnect(True)
 
     # Clear session state
     client_state.clear()
