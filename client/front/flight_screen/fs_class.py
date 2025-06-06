@@ -19,6 +19,7 @@ class FlightScreen(QWidget):
         super().__init__()
         self.ui = Ui_FlightScreen()
         self.ui.setupUi(self)
+        self.enable_mouse_tracking(self)
         self.stack = stack
 
         self.frame = None
@@ -47,6 +48,15 @@ class FlightScreen(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.telemetry_overlay.setGeometry(self.rect())
+
+    def enable_mouse_tracking(self, widget):
+        widget.setMouseTracking(True)
+        for child in widget.findChildren(QWidget):
+            child.setMouseTracking(True)
+
+    def mouseMoveEvent(self, event):
+        if front_state.controller == 'mouse_keyboard':
+            front_state.rc_input.update_mouse_position(event.pos())
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:

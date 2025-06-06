@@ -29,7 +29,6 @@ class FrontState:
 
     def set_controller(self, controller = None):
         if controller and controller in CONTROLLERS_LIST:
-            print(1)
             self.controller = controller
         elif controller:
             return False
