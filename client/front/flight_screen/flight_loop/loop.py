@@ -7,11 +7,11 @@ from tech_utils.logger import init_logger
 logger = init_logger("Front_FlightLoop")
 
 from client.front.config import (
-    NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT, FREQUENCY
+    NO_FRAME_MAX
 )
 
 from client.front.logic.data_listeners import (
-    get_video_resolution, get_video_cap, get_telemetry
+    get_video_resolution, get_video_cap, get_telemetry, ffmpeg_reader, FrameBuffer
 )
 
 
@@ -28,22 +28,28 @@ def loop():
     # Resize GUI window according to video resolution
     front_state.flight_screen.set_video_size((width, height))
 
-    time.sleep(0.2)  # Brief pause before start-up
-
     try:
+        frame_buffer = FrameBuffer()
         cap = get_video_cap()
+
+        reader_thread = threading.Thread(
+            target=ffmpeg_reader,
+            args=(cap, frame_size, frame_buffer, front_state.running_event),
+            daemon=True
+        )
+        reader_thread.start()
 
         threading.Thread(target=get_telemetry, daemon=True).start()
 
         no_frame_counter = 0
         logger.info("Flight loop starting")
 
-        while not front_state.finish_event.is_set() and not front_state.abort_event.is_set():
+        while front_state.running_event.is_set():
 
             # 🎥 Read video frame
-            raw_frame = cap.stdout.read(frame_size)
-            if len(raw_frame) != frame_size:
-                # logger.warning("⚠️ Invalid frame size. Recalculating")
+            raw_frame = frame_buffer.get()
+            if raw_frame is None or len(raw_frame) != frame_size:
+                time.sleep(0.01)
                 continue
 
             frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
@@ -57,6 +63,13 @@ def loop():
                     if cap and hasattr(cap, "kill"):
                         cap.kill()
                     cap = get_video_cap()
+                    reader_thread.join(timeout=2)
+                    reader_thread = threading.Thread(
+                        target=ffmpeg_reader,
+                        args=(cap, frame_size, frame_buffer, front_state.running_event),
+                        daemon=True
+                    )
+                    reader_thread.start()
                     no_frame_counter = 0
                 else:
                     logger.warning("⚠️ Frame not received — waiting...")
@@ -79,12 +92,9 @@ def loop():
 
     finally:
         logger.info("Closing Flight loop")
-        # Graceful shutdown
-        if tlmt_sock:
-            tlmt_sock.close()
-        else:
-            logger.warning("No tlmt_sock found to close")
 
+        # Graceful shutdown
+        reader_thread.join(timeout=2)
         if cap:
             cap.terminate()
             try:

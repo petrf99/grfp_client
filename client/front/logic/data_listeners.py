@@ -1,4 +1,5 @@
 import subprocess
+import threading
 import json
 import time
 import socket
@@ -8,6 +9,31 @@ from client.front.config import CLIENT_VID_RECV_PORT, CLIENT_TLMT_RECV_PORT
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_UDP_Listeners")
+
+class FrameBuffer:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.frame = None
+
+    def put(self, frame):
+        with self.lock:
+            self.frame = frame  # просто перезаписываем
+
+    def get(self):
+        with self.lock:
+            return self.frame
+
+def ffmpeg_reader(cap, frame_size, frame_buffer, running_event):
+    while running_event.is_set():
+        try:
+            raw_frame = cap.stdout.read(frame_size)
+            if len(raw_frame) != frame_size:
+                continue
+            frame_buffer.put(raw_frame)  # заменяет предыдущий кадр
+        except Exception as e:
+            logger.warning(f"FFMPEG Reader error: {e}")
+            continue
+
 
 # 📏 Get the video resolution (width x height) from the incoming UDP stream using ffprobe
 def get_video_resolution():
@@ -60,13 +86,13 @@ telemetry_data = {}
 from tech_utils.udp import get_socket
 
 # 📡 Start listening for telemetry data on the given socket and update telemetry state
-def get_telemetry(tlmt_sock):
+def get_telemetry():
     # Set up sockets for sending RC and receiving telemetry
     tlmt_sock = get_socket("0.0.0.0", CLIENT_TLMT_RECV_PORT, bind=True)
     from client.front.state import front_state
     global telemetry_data
     try:
-        while not front_state.finish_event.is_set() and not front_state.abort_event.is_set():
+        while front_state.running_event.is_set():
             try:
                 data, addr = tlmt_sock.recvfrom(65536)
                 telemetry_data.clear()

@@ -45,8 +45,9 @@ def main():
     app.exec()
 
     # Exit
-    if not front_state.abort_event.is_set() and not front_state.finish_event.is_set() and front_state.session_id:
-        front_state.abort_event.set()
+    if front_state.running_event.is_set():
+        post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": 'abort'}, f"Front2Back: {'abort'} session")
+        front_state.clear()
     if front_state.tailscale_connected_event.is_set():
         time.sleep(1)
         res = post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-disconnect", {}, "Front2Back: Disconnect")

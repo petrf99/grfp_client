@@ -24,6 +24,7 @@ class SessionState:
         self.finish_event = threading.Event()
         self.abort_event = threading.Event()
         self.external_stop_event = threading.Event()
+        self.running_event = threading.Event()
 
         # === Client network ports for receiving telemetry and video ===
         self.client_vid_port = CLIENT_VID_RECV_PORT
@@ -57,6 +58,7 @@ class SessionState:
         self.finish_event.clear()
         self.abort_event.clear()
         self.external_stop_event.clear()
+        self.running_event.clear()
 
         self.client_vid_port = CLIENT_VID_RECV_PORT
         self.client_tlmt_port = CLIENT_TLMT_RECV_PORT

@@ -109,7 +109,7 @@ def front_close_session():
     else:
         client_state.finish_event.set()
 
-    threading.Thread(target=local_close_sess, args=(client_state.finish_event.is_set(),), daemon=True).start()
+    threading.Thread(target=local_close_sess, args=(result=='finish',), daemon=True).start()
     return jsonify({"status": "ok"}), 200
 
 

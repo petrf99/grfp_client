@@ -122,8 +122,7 @@ def keep_connection():
     }
 
     fails = 0
-    while not client_state.finish_event.is_set() and not client_state.abort_event.is_set():
-        print(client_state.abort_event.is_set(), client_state.finish_event.is_set())
+    while client_state.running_event.is_set():
         try:
             res = requests.post(url, json=payload, timeout=5)
             if res.status_code == 200:

@@ -11,10 +11,13 @@ logger = init_logger("Back_SessStarter")
 
 # Starts a remote session with the GCS
 def start_session():
-    # 1. Perform TCP handshake with GCS to establish session
+    # 0. Perform TCP handshake with GCS to establish session
     if not send_start_message_to_gcs():
         logger.error(f"Start session failed on handshake with GCS {client_state}")
         return False
+    
+    # 1. Set client_state.running_event
+    client_state.running_event.set()
     
     # 2. Start background thread to periodically ping GCS to ensure connection stays alive
     threading.Thread(target=keep_connection, daemon=True).start()

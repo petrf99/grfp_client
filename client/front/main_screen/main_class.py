@@ -113,6 +113,7 @@ class MainScreen(QWidget):
 
     def launch_sess(self):
         if front_state.session_id:
+            front_state.running_event.set()
             post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-launch-session", {}, "Front2Back: Launch session")
             self.stack.setCurrentIndex(2)
         else:

@@ -32,7 +32,7 @@ def stream_rc_to_gcs():
 
     try:
         # Main loop: runs until session is finished or aborted
-        while not client_state.finish_event.is_set() and not client_state.abort_event.is_set():
+        while client_state.running_event.is_set():
             cur_time = time.time()
 
             try:
