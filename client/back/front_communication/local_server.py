@@ -31,7 +31,7 @@ def run_back_server():
 
     thread = threading.Thread(target=back_server.serve_forever)
     thread.start()
-    logger.info("Back local server started")
+    logger.info(f"Back local server started on port {BACK_SERV_PORT}")
 
 
 # === Routes ===

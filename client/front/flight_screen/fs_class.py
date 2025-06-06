@@ -2,7 +2,7 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QStackedWidget, QSizePolicy
 from client.front.flight_screen.ui_flight import Ui_FlightScreen
-from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT
+from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT, STATE_CLEAR_INTERVAL
 from client.front.logic.data_listeners import telemetry_data
 from client.front.logic.back_sender import send_rc_frame
 from tech_utils.safe_post_req import post_request
@@ -62,13 +62,13 @@ class FlightScreen(QWidget):
         if event.key() == Qt.Key_Escape:
             front_state.finish_event.set()
             post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": 'finish'}, f"Front2Back: {'finish'} session")
-            time.sleep(0.1)
-            front_state.clear()
+            time.sleep(STATE_CLEAR_INTERVAL)
             self.timer.stop()
             self.frame = None
             self.rc_state = RC_CHANNELS_DEFAULTS.copy()
             self.telemetry = {}
             self.stack.setCurrentIndex(1)
+            front_state.clear()
         elif front_state.controller in ['keyboard', 'mouse_keyboard']:
             self.rc_state = front_state.rc_input.handle_key_press(event, self.rc_state)
 
@@ -94,21 +94,20 @@ class FlightScreen(QWidget):
         self.telemetry_overlay.update_data()
 
     def set_video_size(self, size):
-        h, w = size
+        w, h = size  # width, height — в правильном порядке
 
         self.ui.labelVideoFrame.setMinimumSize(w, h)
-        self.ui.labelVideoFrame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.ui.labelVideoFrame.setScaledContents(True)
+        self.ui.labelVideoFrame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.ui.labelVideoFrame.setScaledContents(False)
         self.setMinimumSize(w, h)
 
-        # Найти QStackedWidget
+        # Найти QStackedWidget и адаптировать его размер
         parent = self.parent()
         while parent and not isinstance(parent, QStackedWidget):
             parent = parent.parent()
 
         if parent:
-            QTimer.singleShot(0, lambda: parent.resize(w, h))
-
+            QTimer.singleShot(0, lambda: parent.adjustSize())
 
 
 from PySide6.QtGui import QPainter, QColor, QFont

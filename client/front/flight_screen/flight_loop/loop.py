@@ -7,22 +7,17 @@ from tech_utils.logger import init_logger
 logger = init_logger("Front_FlightLoop")
 
 from client.front.config import (
-    NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT
+    NO_FRAME_MAX, CLIENT_TLMT_RECV_PORT, FREQUENCY
 )
 
 from client.front.logic.data_listeners import (
-    get_video_resolution, get_video_cap, get_telemetry, telemetry_data
+    get_video_resolution, get_video_cap, get_telemetry
 )
-
-from tech_utils.udp import get_socket
 
 
 def loop():
     from client.front.state import front_state
     session_id = front_state.session_id
-
-    # Set up sockets for sending RC and receiving telemetry
-    tlmt_sock = get_socket("0.0.0.0", CLIENT_TLMT_RECV_PORT, bind=True)
 
     cap = None
 
@@ -31,14 +26,14 @@ def loop():
     frame_size = width * height * 3
 
     # Resize GUI window according to video resolution
-    front_state.flight_screen.set_video_size([height, width])
+    front_state.flight_screen.set_video_size((width, height))
 
     time.sleep(0.2)  # Brief pause before start-up
 
     try:
         cap = get_video_cap()
 
-        threading.Thread(target=get_telemetry, args=(tlmt_sock,), daemon=True).start()
+        threading.Thread(target=get_telemetry, daemon=True).start()
 
         no_frame_counter = 0
         logger.info("Flight loop starting")
@@ -68,21 +63,27 @@ def loop():
                     time.sleep(0.1)
                 continue
 
+            #time.sleep(1/2*FREQUENCY)
+
+        logger.info("Flight loop exited due to event set")
 
     except KeyboardInterrupt:
         logger.warning("User interrupted during loop(). Aborting session.")
         front_state.abort_event.set()
-        return False
+        #return False
 
     except Exception as e:
         logger.error(f"{session_id} Flight Loop Error: {e}")
         front_state.abort_event.set()
-        return False
+        #return False
 
     finally:
+        logger.info("Closing Flight loop")
         # Graceful shutdown
         if tlmt_sock:
             tlmt_sock.close()
+        else:
+            logger.warning("No tlmt_sock found to close")
 
         if cap:
             cap.terminate()
@@ -90,5 +91,8 @@ def loop():
                 cap.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 cap.kill()
+        else:
+            logger.warning("No cap found to close")
 
-    return front_state.finish_event.is_set()
+        logger.info("Flight loop terminated")
+        return front_state.finish_event.is_set()

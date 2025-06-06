@@ -2,7 +2,7 @@ import requests
 import time
 import re
 
-from client.front.config import BACK_SERV_PORT, BACK_POLLING_INTERVAL
+from client.front.config import BACK_SERV_PORT, BACK_POLLING_INTERVAL, STATE_CLEAR_INTERVAL
 from tech_utils.safe_post_req import post_request
 from tech_utils.logger import init_logger
 
@@ -43,6 +43,8 @@ def back_polling():
     """
     from client.front.state import front_state
 
+    logger.info(f"Start listen back-end on port {BACK_SERV_PORT}")
+
     while front_state.poll_back_event.is_set():
         try:
             res = requests.post(url=BASE_URL+"/get-message", json={}, timeout=3)
@@ -56,6 +58,8 @@ def back_polling():
                         payload={"result": "abort"},
                         description="Front2Back: abort session"
                     )
+                    time.sleep(STATE_CLEAR_INTERVAL)
+                    front_state.clear()
 
                 elif message == "finish":
                     logger.info("Finish command received from backend.")
@@ -65,6 +69,8 @@ def back_polling():
                         payload={"result": "finish"},
                         description="Front2Back: finish session"
                     )
+                    time.sleep(STATE_CLEAR_INTERVAL)
+                    front_state.clear()
 
                 elif message.startswith("session-request"):
                     front_state.main_screen.append_log(f"👋 GCS {extract_ip(message)} requests a session. Click 'launch' to start or 'abort' to cancel it")

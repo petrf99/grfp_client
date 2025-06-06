@@ -4,7 +4,7 @@ import time
 import socket
 from tech_utils.safe_subp_run import safe_subp_run
 
-from client.front.config import CLIENT_VID_RECV_PORT
+from client.front.config import CLIENT_VID_RECV_PORT, CLIENT_TLMT_RECV_PORT
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_UDP_Listeners")
@@ -49,6 +49,7 @@ def get_video_cap():
         "-pix_fmt", "rgb24",
         "-"
     ]
+    logger.info(f"Start listen video on port {CLIENT_VID_RECV_PORT}")
 
     return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
 
@@ -56,8 +57,12 @@ def get_video_cap():
 # 📡 Global telemetry data storage
 telemetry_data = {}
 
+from tech_utils.udp import get_socket
+
 # 📡 Start listening for telemetry data on the given socket and update telemetry state
 def get_telemetry(tlmt_sock):
+    # Set up sockets for sending RC and receiving telemetry
+    tlmt_sock = get_socket("0.0.0.0", CLIENT_TLMT_RECV_PORT, bind=True)
     from client.front.state import front_state
     global telemetry_data
     try:
@@ -78,3 +83,5 @@ def get_telemetry(tlmt_sock):
         logger.warning(f"Telemetry receiver socket closed: {e}")
     except Exception as e:
         logger.error(f"Telemetry receiver error: {e}")
+    finally:
+        tlmt_sock.close()

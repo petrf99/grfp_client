@@ -23,7 +23,7 @@ def run_client_server():
     server = make_server("0.0.0.0", CLIENT_TCP_PORT, app)
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
-    logger.info("Flask server started")
+    logger.info(f"Flask server started on port {CLIENT_TCP_PORT}")
 
 # Graceful shutdown endpoint for the TCP server
 @app.route("/shutdown", methods=["POST"])
@@ -89,7 +89,7 @@ def send_start_message_to_gcs():
         "session_id": client_state.session_id,
         "message": "start-session"
     }
-    send_message_to_front(f"📡 Sending start_session to GCS at {client_state.gcs_ip}...")
+    send_message_to_front(f"📡 Sending start_session to GCS at {client_state.gcs_ip}:{GCS_TCP_PORT}...")
     
     res = post_request(
         url=url,
@@ -123,6 +123,7 @@ def keep_connection():
 
     fails = 0
     while not client_state.finish_event.is_set() and not client_state.abort_event.is_set():
+        print(client_state.abort_event.is_set(), client_state.finish_event.is_set())
         try:
             res = requests.post(url, json=payload, timeout=5)
             if res.status_code == 200:

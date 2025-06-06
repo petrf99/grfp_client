@@ -58,3 +58,6 @@ CONTROLLER_PATH="client/settings/controller.json"
 # Local ports
 BACK_SERV_PORT=int(os.getenv("BACK_SERV_PORT"))
 BACK_UDP_PORT=int(os.getenv("BACK_UDP_PORT"))
+
+# Other
+STATE_CLEAR_INTERVAL = 3

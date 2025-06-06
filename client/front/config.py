@@ -55,6 +55,7 @@ HUD_MARGIN = 30
 BACK_SERV_PORT=int(os.getenv("BACK_SERV_PORT"))
 BACK_UDP_PORT=int(os.getenv("BACK_UDP_PORT"))
 BACK_POLLING_INTERVAL=0.5
+STATE_CLEAR_INTERVAL=0.1
 
 HELP_FILE_PATH="client/settings/help.txt"
 CONTROLLER_PATH="client/settings/controller.json"

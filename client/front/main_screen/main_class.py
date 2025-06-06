@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 import json
 from tech_utils.safe_post_req import post_request
-from client.front.config import BACK_SERV_PORT, RFD_MM_URL, CONTROLLERS_LIST, CONTROLLER_PATH
+from client.front.config import BACK_SERV_PORT, RFD_MM_URL, CONTROLLERS_LIST, CONTROLLER_PATH, STATE_CLEAR_INTERVAL
 from client.front.state import front_state
 
 from tech_utils.logger import init_logger
@@ -106,7 +106,7 @@ class MainScreen(QWidget):
         if front_state.session_id:
             front_state.abort_event.set()
             post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": 'abort'}, f"Front2Back: {'abort'} session")
-            time.sleep(0.1)
+            time.sleep(STATE_CLEAR_INTERVAL)
             front_state.clear()
         else:
             front_state.main_screen.append_log("No active session to abort")
