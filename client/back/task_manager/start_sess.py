@@ -13,6 +13,7 @@ logger = init_logger("Back_SessStarter")
 def start_session():
     # 0. Perform TCP handshake with GCS to establish session
     if not send_start_message_to_gcs():
+        send_message_to_front("abort")
         logger.error(f"Start session failed on handshake with GCS {client_state}")
         return False
     

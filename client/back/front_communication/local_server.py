@@ -103,12 +103,6 @@ def front_close_session():
     if not client_state.session_id:
         return jsonify({"status": "error", "reason": "No session to close"}), 400 
 
-    # Signal backend
-    if result == 'abort':
-        client_state.abort_event.set()
-    else:
-        client_state.finish_event.set()
-
     threading.Thread(target=local_close_sess, args=(result=='finish',), daemon=True).start()
     return jsonify({"status": "ok"}), 200
 

@@ -17,9 +17,7 @@ class FrontState:
         self.poll_back_event = threading.Event()
 
         self.user_id = None
-
-        self.abort_event = threading.Event()
-        self.finish_event = threading.Event()
+        
         self.running_event = threading.Event()
 
         self.login_screen = None
@@ -72,8 +70,6 @@ class FrontState:
 
     def clear(self):
         self.session_id = None
-        self.abort_event.clear()
-        self.finish_event.clear()
         self.running_event.clear()
     def status(self):
         return f"Session ID: {self.session_id}\nVPN Connected: {self.tailscale_connected_event.is_set()}"

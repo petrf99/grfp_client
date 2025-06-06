@@ -21,8 +21,6 @@ class SessionState:
         self.mission_id = None
 
         # === Thread control events ===
-        self.finish_event = threading.Event()
-        self.abort_event = threading.Event()
         self.external_stop_event = threading.Event()
         self.running_event = threading.Event()
 
@@ -55,8 +53,6 @@ class SessionState:
         self.session_id = None
         self.mission_id = None
 
-        self.finish_event.clear()
-        self.abort_event.clear()
         self.external_stop_event.clear()
         self.running_event.clear()
 

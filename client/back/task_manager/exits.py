@@ -3,7 +3,7 @@ import time
 import os
 
 from tech_utils.tailscale import tailscale_down
-from client.back.config import GCS_TCP_PORT, ABORT_MSG, FINISH_MSG, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH, STATE_CLEAR_INTERVAL
+from client.back.config import GCS_TCP_PORT, ABORT_MSG, FINISH_MSG, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
 from client.back.gcs_communication.tailscale_connect import delete_vpn_connection
 from client.back.state import client_state
 from client.back.front_communication.front_msg_sender import send_message_to_front
@@ -17,9 +17,6 @@ def local_close_sess(finish_flg=False):
     status = ABORT_MSG
     if finish_flg:
         status = FINISH_MSG
-        client_state.finish_event.set()
-    else:
-        client_state.abort_event.set()
 
     try:
         # If GCS has not externally closed the session, notify it
@@ -40,8 +37,6 @@ def local_close_sess(finish_flg=False):
                 logger.error(f"{client_state} Failed to send {status} message to GCS. Exception: {e}. Forcing termination.")
     except Exception as e:
         logger.error(f"Unexpected error while sending {status}-session to GCS: {e}")
-
-    time.sleep(STATE_CLEAR_INTERVAL)
 
     # Disconnect from Tailnet
     if client_state.token:

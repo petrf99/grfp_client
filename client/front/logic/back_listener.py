@@ -2,7 +2,7 @@ import requests
 import time
 import re
 
-from client.front.config import BACK_SERV_PORT, BACK_POLLING_INTERVAL, STATE_CLEAR_INTERVAL
+from client.front.config import BACK_SERV_PORT, BACK_POLLING_INTERVAL
 from tech_utils.safe_post_req import post_request
 from tech_utils.logger import init_logger
 
@@ -52,24 +52,20 @@ def back_polling():
                 message = res.json().get('message')
                 if message == "abort":
                     logger.info("Abort command received from backend.")
-                    front_state.abort_event.set()
                     post_request(
                         url=f"{BASE_URL}/front-close-session",
                         payload={"result": "abort"},
                         description="Front2Back: abort session"
                     )
-                    time.sleep(STATE_CLEAR_INTERVAL)
                     front_state.clear()
 
                 elif message == "finish":
                     logger.info("Finish command received from backend.")
-                    front_state.finish_event.set()
                     post_request(
                         url=f"{BASE_URL}/front-close-session",
                         payload={"result": "finish"},
                         description="Front2Back: finish session"
                     )
-                    time.sleep(STATE_CLEAR_INTERVAL)
                     front_state.clear()
 
                 elif message.startswith("session-request"):

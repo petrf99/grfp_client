@@ -82,12 +82,12 @@ def loop():
 
     except KeyboardInterrupt:
         logger.warning("User interrupted during loop(). Aborting session.")
-        front_state.abort_event.set()
+        front_state.running_event.clear()
         #return False
 
     except Exception as e:
         logger.error(f"{session_id} Flight Loop Error: {e}")
-        front_state.abort_event.set()
+        front_state.running_event.clear()
         #return False
 
     finally:
@@ -105,4 +105,4 @@ def loop():
             logger.warning("No cap found to close")
 
         logger.info("Flight loop terminated")
-        return front_state.finish_event.is_set()
+        return front_state.running_event.is_set()

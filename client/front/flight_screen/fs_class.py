@@ -2,7 +2,7 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QStackedWidget, QSizePolicy
 from client.front.flight_screen.ui_flight import Ui_FlightScreen
-from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT, STATE_CLEAR_INTERVAL
+from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT
 from client.front.logic.data_listeners import telemetry_data
 from client.front.logic.back_sender import send_rc_frame
 from tech_utils.safe_post_req import post_request
@@ -60,9 +60,8 @@ class FlightScreen(QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            front_state.finish_event.set()
-            post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": 'finish'}, f"Front2Back: {'finish'} session")
-            time.sleep(STATE_CLEAR_INTERVAL)
+            result = 'finish' if front_state.running_event.is_set() else 'abort'
+            post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-close-session", {"result": result}, f"Front2Back: {result} session")
             self.timer.stop()
             self.frame = None
             self.rc_state = RC_CHANNELS_DEFAULTS.copy()

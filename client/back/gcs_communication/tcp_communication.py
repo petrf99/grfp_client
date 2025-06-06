@@ -48,14 +48,12 @@ def receive_message():
 
     # GCS requests to abort session
     if message == 'abort-session':
-        client_state.abort_event.set()
         client_state.external_stop_event.set()
         send_message_to_front('abort')
         return jsonify({"status": "ok"})
 
     # GCS requests to finish session normally
     elif message == 'finish-session':
-        client_state.finish_event.set()
         client_state.external_stop_event.set()
         send_message_to_front('finish')
         return jsonify({"status": "ok"})
@@ -97,7 +95,7 @@ def send_start_message_to_gcs():
         description="GCS Handshake",
         retries=NUM_START_SESS_ATTEMPTS,
         timeout=START_SESS_POLL_INTERVAL,
-        event_to_set=client_state.abort_event,
+        event_to_set=None,
         print_func=send_message_to_front,
         message="📡 Waiting for a Handshake with GCS"
     )
@@ -128,18 +126,20 @@ def keep_connection():
             if res.status_code == 200:
                 logger.info(f"{client_state} Ping to GCS successful")
                 fails = 0
+                continue
             else:
-                fails += 1
-                send_message_to_front("⚠️ Connection with GCS went wrong, retrying...")
                 logger.warning(f"{client_state} Ping to GCS failed. Status_code: {res.status_code}")
         except Exception as e:
-            fails += 1
-            send_message_to_front("❌ Connection with GCS failed, retrying...")
             logger.error(f"{client_state} Unsuccessful ping to GCS. Exception: {e}")
+
+        if client_state.running_event.is_set():
+            fails += 1
+            send_message_to_front("⚠️ Connection with GCS went wrong, retrying...")
+        else:
+            continue
 
         # Too many failed attempts, consider connection lost
         if fails >= TCP_KEEP_CONNECTION_RETRIES:
-            client_state.abort_event.set()
             send_message_to_front("❌ GCS has disconnected. Please contact administrator.\nClosing the session...")
             send_message_to_front("abort")
             logger.error(f"{client_state} No TCP connection with GCS")
