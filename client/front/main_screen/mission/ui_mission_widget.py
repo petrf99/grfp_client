@@ -23,8 +23,13 @@ class Ui_MissionWidget(object):
     def setupUi(self, MissionWidget):
         if not MissionWidget.objectName():
             MissionWidget.setObjectName(u"MissionWidget")
-        MissionWidget.setMinimumSize(QSize(0, 120))
+        MissionWidget.setMinimumSize(QSize(0, 150))
         MissionWidget.setMaximumWidth(800)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(MissionWidget.sizePolicy().hasHeightForWidth())
+        MissionWidget.setSizePolicy(sizePolicy)
         self.mainLayout = QVBoxLayout(MissionWidget)
         self.mainLayout.setObjectName(u"mainLayout")
         self.gridLayout = QGridLayout()

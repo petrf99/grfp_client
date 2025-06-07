@@ -1,6 +1,6 @@
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QImage, QPixmap, QGuiApplication
 from PySide6.QtCore import QTimer, Qt, QMetaObject, Slot
-from PySide6.QtWidgets import QStackedWidget, QSizePolicy
+from PySide6.QtWidgets import QStackedWidget, QSizePolicy, QApplication
 from client.front.flight_screen.ui_flight import Ui_FlightScreen
 from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT
 from client.front.logic.data_listeners import telemetry_data
@@ -41,6 +41,7 @@ class FlightScreen(QWidget):
     
     def showEvent(self, event):
         super().showEvent(event)
+        # Launch frame draw
         self.timer.start(1000 // FREQUENCY)  # Frequency FPS
         self.setFocus()
         threading.Thread(target=loop, daemon=True).start()
@@ -95,7 +96,10 @@ class FlightScreen(QWidget):
         if self.frame is not None:
             image = QImage(self.frame.data, self.frame.shape[1], self.frame.shape[0], QImage.Format_RGB888)
             pixmap = QPixmap.fromImage(image)
-            self.ui.labelVideoFrame.setPixmap(pixmap)
+            label_size = self.ui.labelVideoFrame.size()
+            scaled_pixmap = pixmap.scaled(label_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.ui.labelVideoFrame.setPixmap(scaled_pixmap)
+
         # Upd and send RC data
         self.rc_state = front_state.rc_input.read_frame(self.rc_state, front_state.sensitivity)
         send_rc_frame(front_state.session_id, self.rc_state, front_state.controller)
@@ -104,12 +108,23 @@ class FlightScreen(QWidget):
         self.telemetry_overlay.update_data()
 
     def set_video_size(self, size):
+        QTimer.singleShot(0, lambda: self._set_video_size(size))
+
+    def _set_video_size(self, size):
         w, h = size  # width, height — в правильном порядке
+        screen_geometry = QGuiApplication.primaryScreen().availableGeometry()
+        screen_w, screen_h = screen_geometry.width(), screen_geometry.height()
+
+        video_w, video_h = size
+        # Масштабируем под экран, если нужно
+        scale = min(screen_w / video_w, screen_h / video_h, 1.0)
+        w, h = int(video_w * scale), int(video_h * scale)
 
         self.ui.labelVideoFrame.setMinimumSize(w, h)
         self.ui.labelVideoFrame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.ui.labelVideoFrame.setScaledContents(False)
         self.setMinimumSize(w, h)
+        self.setMaximumSize(screen_geometry.size())
 
         # Найти QStackedWidget и адаптировать его размер
         parent = self.parent()

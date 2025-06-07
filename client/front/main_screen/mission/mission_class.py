@@ -4,6 +4,8 @@ from tech_utils.safe_post_req import post_request
 from client.front.config import BACK_SERV_PORT
 from client.front.state import front_state
 
+button_pressed_flg = False # Global to forbid different connection attempts simultaneously
+
 class MissionWidget(QWidget):
     def __init__(self, mission_data):
         super().__init__()
@@ -11,8 +13,6 @@ class MissionWidget(QWidget):
         self.ui.setupUi(self)
 
         self.mission_id = mission_data['mission_id']
-
-        self.button_pressed_flg = False
 
         # Fill data from mission_data
         self.ui.labelDroneType.setText(f"Drone: {mission_data['drone_type']}")
@@ -27,27 +27,29 @@ class MissionWidget(QWidget):
 
     def toggle_connection(self):
         # Connect/disconnect to Tailnet
-        if not front_state.tailscale_connected_event.is_set() and not self.button_pressed_flg:
+        global button_pressed_flg
+        if not front_state.tailscale_connected_event.is_set() and not button_pressed_flg and self.ui.pushButtonConnect.text() == "Connect":
             res = post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-connect", {"mission_id": self.mission_id}, f"Front2Back: Connect with mission {self.mission_id}")
             if res:
                 front_state.main_screen.append_log("You are being connected to Tailnet. Please wait...")
                 front_state.active_mission = self
-                self.button_pressed_flg = True
+                button_pressed_flg = True
             else:
                 front_state.main_screen.append_log("Couldn't connect to Tailnet. Please contact admin.")
-        elif not self.button_pressed_flg:
+        elif not button_pressed_flg and self.ui.pushButtonConnect.text() == "Disconnect":
             res = post_request(f"http://127.0.0.1:{BACK_SERV_PORT}/front-disconnect", {}, "Front2Back: Disconnect")
             if res:
                 front_state.main_screen.append_log("Waiting for Tailscale to disconnect...")
-                self.button_pressed_flg = True
+                button_pressed_flg = True
             else:
                 front_state.main_screen.append_log("Failed to disconnect")
         else:
-            front_state.main_screen.append_log("Your previous request is being handled. Please wait")
+            front_state.main_screen.append_log("Your previous request is being handled.")
 
     def toggle_button_text(self):
+        global button_pressed_flg
         if front_state.tailscale_connected_event.is_set():
             self.ui.pushButtonConnect.setText("Disconnect")
         elif front_state.tailscale_disconnect_event.is_set():
                     self.ui.pushButtonConnect.setText("Connect")
-        self.button_pressed_flg = False
+        button_pressed_flg = False
