@@ -3,12 +3,11 @@ from PySide6.QtCore import QTimer, Qt, QMetaObject, Slot
 from PySide6.QtWidgets import QStackedWidget, QSizePolicy, QApplication
 from client.front.flight_screen.ui_flight import Ui_FlightScreen
 from client.front.config import FREQUENCY, TELEMETRY_GUI_DRAW_FIELDS, RC_CHANNELS_DEFAULTS, HUD_MARGIN, BACK_SERV_PORT
-from client.front.logic.data_listeners import telemetry_data
+from client.front.flight_screen.flight_loop.tlmt_listener import telemetry_data, get_telemetry
+from client.front.flight_screen.flight_loop.video_listener import get_video
 from client.front.logic.back_sender import send_rc_frame
 from tech_utils.safe_post_req import post_request
 import threading
-import time
-from client.front.flight_screen.flight_loop.loop import loop
 from client.front.state import front_state
 import numpy as np
 
@@ -44,7 +43,8 @@ class FlightScreen(QWidget):
         # Launch frame draw
         self.timer.start(1000 // FREQUENCY)  # Frequency FPS
         self.setFocus()
-        threading.Thread(target=loop, daemon=True).start()
+        threading.Thread(target=get_video, daemon=True).start()
+        threading.Thread(target=get_telemetry, daemon=True).start()
 
     def hideEvent(self, event):
         super().hideEvent(event)
@@ -149,11 +149,6 @@ class TelemetryOverlay(QWidget):
         self.update()  # triggers paintEvent()
 
     def paintEvent(self, event):
-        global telemetry_data
-        if not telemetry_data:
-            tlmt_values = {}
-        else:
-            tlmt_values = telemetry_data.copy()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(QColor(255, 255, 255))
@@ -164,6 +159,12 @@ class TelemetryOverlay(QWidget):
 
         painter.drawText(hud_margin, y, "You are in the Flight Mode. Press ESC to exit")
         y += 20
+
+        global telemetry_data
+        if not telemetry_data:
+            return
+        else:
+            tlmt_values = telemetry_data.copy()
 
         for k, v in tlmt_values.items():
             if k in TELEMETRY_GUI_DRAW_FIELDS + ["round_trip_time_ms"]:

@@ -1,21 +1,78 @@
+# Get video from UDP-port via ffmpeg
 import numpy as np
 import time
 import threading
 import subprocess
-
-from tech_utils.logger import init_logger
-logger = init_logger("Front_FlightLoop")
+import json
 
 from client.front.config import (
-    NO_FRAME_MAX
+    NO_FRAME_MAX, CLIENT_VID_RECV_PORT
 )
+from tech_utils.udp_listener import LatestValueBuffer
+from tech_utils.safe_subp_run import safe_subp_run
 
-from client.front.logic.data_listeners import (
-    get_video_resolution, get_video_cap, get_telemetry, ffmpeg_reader, FrameBuffer
-)
+from tech_utils.logger import init_logger
+logger = init_logger("Front_VID_Listener")
+
+def ffmpeg_reader(cap, frame_size, frame_buffer: LatestValueBuffer, running_event):
+    while running_event.is_set():
+        try:
+            raw_frame = cap.stdout.read(frame_size)
+            if len(raw_frame) != frame_size:
+                continue
+            frame_buffer.set(raw_frame)  # заменяет предыдущий кадр
+        except Exception as e:
+            logger.warning(f"FFMPEG Reader error: {e}")
+            continue
 
 
-def loop():
+# 📏 Get the video resolution (width x height) from the incoming UDP stream using ffprobe
+def get_video_resolution():
+    cmd = [
+        "ffprobe",
+        "-v", "error",  # show only errors
+        "-select_streams", "v:0",  # select the first video stream
+        "-show_entries", "stream=width,height",  # request width and height info
+        "-of", "json",  # output format as JSON
+        f"udp://@:{CLIENT_VID_RECV_PORT}?timeout=5000000"  # video source: UDP stream on specified port
+    ]
+
+    n_attempts = 1000
+    k = 0
+    info = None
+    while (not info or not isinstance(info, dict) or "streams" not in info) and k <= n_attempts:
+        out = safe_subp_run(cmd, retries=100, timeout=10, check=True, capture_output=True)
+        info = json.loads(out.stdout)
+        if not info or not isinstance(info, dict) or "streams" not in info:
+            logger.error("Can't get video resolution.")
+            k += 1
+            continue
+        w = info['streams'][0]['width']
+        h = info['streams'][0]['height']
+        logger.info(f"Video resolution {w}x{h} obtained")
+        return w, h
+
+
+# 🎥 Connect to the local UDP video port and start receiving raw video frames via ffmpeg
+def get_video_cap():
+    ffmpeg_recv_cmd = [
+        "ffmpeg",
+        "-fflags", "+discardcorrupt",
+        "-flags", "low_delay",
+        "-probesize", "500000",
+        "-analyzeduration", "1000000",
+        "-i", f"udp://@:{CLIENT_VID_RECV_PORT}?fifo_size=1000000&overrun_nonfatal=1",
+        "-f", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-"
+    ]
+    logger.info(f"Start listen video on port {CLIENT_VID_RECV_PORT}")
+
+    return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+
+
+# Main function
+def get_video():
     from client.front.state import front_state
     session_id = front_state.session_id
 
@@ -29,7 +86,7 @@ def loop():
     front_state.flight_screen.set_video_size((width, height))
 
     try:
-        frame_buffer = FrameBuffer()
+        frame_buffer = LatestValueBuffer()
         cap = get_video_cap()
 
         reader_thread = threading.Thread(
@@ -38,8 +95,6 @@ def loop():
             daemon=True
         )
         reader_thread.start()
-
-        threading.Thread(target=get_telemetry, daemon=True).start()
 
         no_frame_counter = 0
         logger.info("Flight loop starting")
@@ -75,8 +130,6 @@ def loop():
                     logger.warning("⚠️ Frame not received — waiting...")
                     time.sleep(0.1)
                 continue
-
-            #time.sleep(1/2*FREQUENCY)
 
         logger.info("Flight loop exited due to event set")
 

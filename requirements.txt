@@ -7,3 +7,4 @@ cryptography
 pyside6
 pytest
 pytest-flask
+orjson
