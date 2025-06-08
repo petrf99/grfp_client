@@ -8,19 +8,19 @@ import json
 from client.front.config import (
     NO_FRAME_MAX, CLIENT_VID_RECV_PORT
 )
-from tech_utils.udp_listener import LatestValueBuffer
+from tech_utils.udp_listener import RingBuffer
 from tech_utils.safe_subp_run import safe_subp_run
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_VID_Listener")
 
-def ffmpeg_reader(cap, frame_size, frame_buffer: LatestValueBuffer, running_event):
+def ffmpeg_reader(cap, frame_size, frame_buffer: RingBuffer, running_event):
     while running_event.is_set():
         try:
             raw_frame = cap.stdout.read(frame_size)
             if len(raw_frame) != frame_size:
                 continue
-            frame_buffer.set(raw_frame)  # заменяет предыдущий кадр
+            frame_buffer.set(val=raw_frame, addr=None)  # заменяет предыдущий кадр
         except Exception as e:
             logger.warning(f"FFMPEG Reader error: {e}")
             continue
@@ -86,7 +86,7 @@ def get_video():
     front_state.flight_screen.set_video_size((width, height))
 
     try:
-        frame_buffer = LatestValueBuffer()
+        frame_buffer = RingBuffer()
         cap = get_video_cap()
 
         reader_thread = threading.Thread(
