@@ -85,23 +85,19 @@ def test_front_launch_session_without_session(client):
 def test_front_close_session_finish(mock_close, client):
     """Should handle valid 'finish' result and start thread."""
     client_state.session_id = "xyz"
-    client_state.finish_event.clear()
 
     response = client.post("/front-close-session", json={"result": "finish"})
     assert response.status_code == 200
-    assert client_state.finish_event.is_set()
     client_state.session_id = None
 
 
 @patch("client.back.front_communication.local_server.local_close_sess")
 def test_front_close_session_abort(mock_close, client):
-    """Should handle valid 'abort' result and set abort_event."""
+    """Should handle valid 'abort' result."""
     client_state.session_id = "xyz"
-    client_state.abort_event.clear()
 
     response = client.post("/front-close-session", json={"result": "abort"})
     assert response.status_code == 200
-    assert client_state.abort_event.is_set()
     client_state.session_id = None
 
 

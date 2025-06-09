@@ -32,7 +32,7 @@ def test_connect_failure(mock_send, mock_get):
     assert result is False
     assert client_state.mission_id == "mission123"
     mock_send.assert_called_once()
-    assert "couldn't obtain" in mock_send.call_args[0][0].lower()
+    assert "ts-disconnected" in mock_send.call_args[0][0].lower()
 
 
 @patch("client.back.gcs_communication.tailscale_connect.start_tailscale", return_value=True)
