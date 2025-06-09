@@ -31,7 +31,6 @@ def get_telemetry():
                 init_timestamp = telemetry_data.get("rc_channels", {}).get("init_timestamp")
                 if init_timestamp is not None:
                     telemetry_data["round_trip_time_ms"] = int(1000 * (cur_time - init_timestamp))
-                time.sleep(1 / FREQUENCY)
             except Exception as e:
                 logger.warning(f"Telemetry parse/update error: {e}")
 
