@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FlightScreen</class>
+ <widget class="QWidget" name="FlightScreen">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>960</width><height>540</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Video Stream</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="labelVideoFrame">
+     <property name="minimumSize">
+      <size><width>640</width><height>360</height></size>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="text">
+      <string>Video frame will appear here</string>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: black; color: white;</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

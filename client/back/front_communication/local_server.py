@@ -31,7 +31,7 @@ def run_back_server():
 
     thread = threading.Thread(target=back_server.serve_forever)
     thread.start()
-    logger.info("Back local server started")
+    logger.info(f"Back local server started on port {BACK_SERV_PORT}")
 
 
 # === Routes ===
@@ -103,13 +103,7 @@ def front_close_session():
     if not client_state.session_id:
         return jsonify({"status": "error", "reason": "No session to close"}), 400 
 
-    # Signal backend
-    if result == 'abort':
-        client_state.abort_event.set()
-    else:
-        client_state.finish_event.set()
-
-    threading.Thread(target=local_close_sess, args=(client_state.finish_event.is_set(),), daemon=True).start()
+    threading.Thread(target=local_close_sess, args=(result=='finish',), daemon=True).start()
     return jsonify({"status": "ok"}), 200
 
 

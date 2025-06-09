@@ -23,7 +23,7 @@ def run_client_server():
     server = make_server("0.0.0.0", CLIENT_TCP_PORT, app)
     thread = threading.Thread(target=server.serve_forever)
     thread.start()
-    logger.info("Flask server started")
+    logger.info(f"Flask server started on port {CLIENT_TCP_PORT}")
 
 # Graceful shutdown endpoint for the TCP server
 @app.route("/shutdown", methods=["POST"])
@@ -48,14 +48,12 @@ def receive_message():
 
     # GCS requests to abort session
     if message == 'abort-session':
-        client_state.abort_event.set()
         client_state.external_stop_event.set()
         send_message_to_front('abort')
         return jsonify({"status": "ok"})
 
     # GCS requests to finish session normally
     elif message == 'finish-session':
-        client_state.finish_event.set()
         client_state.external_stop_event.set()
         send_message_to_front('finish')
         return jsonify({"status": "ok"})
@@ -89,7 +87,7 @@ def send_start_message_to_gcs():
         "session_id": client_state.session_id,
         "message": "start-session"
     }
-    send_message_to_front(f"📡 Sending start_session to GCS at {client_state.gcs_ip}...")
+    send_message_to_front(f"📡 Sending start_session to GCS at {client_state.gcs_ip}:{GCS_TCP_PORT}...")
     
     res = post_request(
         url=url,
@@ -97,7 +95,7 @@ def send_start_message_to_gcs():
         description="GCS Handshake",
         retries=NUM_START_SESS_ATTEMPTS,
         timeout=START_SESS_POLL_INTERVAL,
-        event_to_set=client_state.abort_event,
+        event_to_set=client_state.running_event,
         print_func=send_message_to_front,
         message="📡 Waiting for a Handshake with GCS"
     )
@@ -122,30 +120,35 @@ def keep_connection():
     }
 
     fails = 0
-    while not client_state.finish_event.is_set() and not client_state.abort_event.is_set():
+    while client_state.running_event.is_set():
         try:
             res = requests.post(url, json=payload, timeout=5)
             if res.status_code == 200:
                 logger.info(f"{client_state} Ping to GCS successful")
                 fails = 0
+                time.sleep(PING_INTERVAL)
+                continue
             else:
-                fails += 1
-                send_message_to_front("⚠️ Connection with GCS went wrong, retrying...")
                 logger.warning(f"{client_state} Ping to GCS failed. Status_code: {res.status_code}")
         except Exception as e:
-            fails += 1
-            send_message_to_front("❌ Connection with GCS failed, retrying...")
             logger.error(f"{client_state} Unsuccessful ping to GCS. Exception: {e}")
+
+        if client_state.running_event.is_set():
+            fails += 1
+            send_message_to_front("⚠️ Connection with GCS went wrong, retrying...")
+        else:
+            time.sleep(PING_INTERVAL)
+            continue
 
         # Too many failed attempts, consider connection lost
         if fails >= TCP_KEEP_CONNECTION_RETRIES:
-            client_state.abort_event.set()
             send_message_to_front("❌ GCS has disconnected. Please contact administrator.\nClosing the session...")
             send_message_to_front("abort")
             logger.error(f"{client_state} No TCP connection with GCS")
             break
 
         time.sleep(PING_INTERVAL)
+
     
     logger.info(f"Finished keep-connection thread for session {client_state}")
 

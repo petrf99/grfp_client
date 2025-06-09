@@ -43,6 +43,8 @@ def back_polling():
     """
     from client.front.state import front_state
 
+    logger.info(f"Start listen back-end on port {BACK_SERV_PORT}")
+
     while front_state.poll_back_event.is_set():
         try:
             res = requests.post(url=BASE_URL+"/get-message", json={}, timeout=3)
@@ -50,41 +52,48 @@ def back_polling():
                 message = res.json().get('message')
                 if message == "abort":
                     logger.info("Abort command received from backend.")
-                    front_state.abort_event.set()
                     post_request(
                         url=f"{BASE_URL}/front-close-session",
                         payload={"result": "abort"},
                         description="Front2Back: abort session"
                     )
+                    front_state.clear()
+                    front_state.flight_screen.reset_flight_screen()
+                    logger.info("Back to main screen command sent")
 
                 elif message == "finish":
                     logger.info("Finish command received from backend.")
-                    front_state.finish_event.set()
                     post_request(
                         url=f"{BASE_URL}/front-close-session",
                         payload={"result": "finish"},
                         description="Front2Back: finish session"
                     )
+                    front_state.clear()
+                    front_state.flight_screen.reset_flight_screen()
+                    logger.info("Back to main screen command sent")
 
                 elif message.startswith("session-request"):
-                    print(f"\n👋 GCS {extract_ip(message)} requests a session.\nType 'launch' to start or 'abort' to cancel it")
+                    front_state.main_screen.append_log(f"👋 GCS {extract_ip(message)} requests a session. Click 'launch' to start or 'abort' to cancel it")
                     front_state.session_id = extract_uuid4(message)
 
                 elif message.startswith("ts-connected"):
                     front_state.tailscale_connected_event.set()
                     front_state.tailscale_disconnect_event.clear()
-                    print(" ".join(message.split(" ")[1:]))
+                    front_state.active_mission.toggle_button_text()
+                    front_state.main_screen.append_log(" ".join(message.split(" ")[1:]))
 
                 elif message.startswith("ts-disconnected"):
                     front_state.tailscale_disconnect_event.set()
                     front_state.tailscale_connected_event.clear()
-                    print(" ".join(message.split(" ")[1:]))
+                    front_state.active_mission.toggle_button_text()
+                    front_state.active_mission = None
+                    front_state.main_screen.append_log(" ".join(message.split(" ")[1:]))
 
                 else:
-                    logger.warning(f"Polling exception: {e}")
-                    print(message)
+                    front_state.main_screen.append_log(message)
 
         except Exception as e:
+            logger.warning(f"Polling exception: {e}")
             time.sleep(2)
 
         time.sleep(BACK_POLLING_INTERVAL)

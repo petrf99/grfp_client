@@ -14,6 +14,7 @@ logger = init_logger("Back_BasicCmds")
 # Gracefully close a session, notify GCS, clean up state
 def local_close_sess(finish_flg=False):
     send_message_to_front("Closing session...")
+    logger.info("Closing session")
     status = ABORT_MSG
     if finish_flg:
         status = FINISH_MSG
@@ -38,21 +39,28 @@ def local_close_sess(finish_flg=False):
     except Exception as e:
         logger.error(f"Unexpected error while sending {status}-session to GCS: {e}")
 
-    time.sleep(0.5)
-
-    # Revoke VPN credentials if they exist
+    # Disconnect from Tailnet
     if client_state.token:
-        delete_vpn_connection()
+        disconnect(True)
 
     # Clear session state
     client_state.clear()
     send_message_to_front("Session closed")
+    logger.info(f"Session closed")
 
     return True
 
 
 # Disconnect from Tailscale, delete local RSA keys
-def disconnect():
+def disconnect(call_from_close_sess=False):
+    # Close session if it is
+    if not call_from_close_sess and client_state.session_id:
+        local_close_sess()
+
+    # Revoke VPN credentials if they exist
+    if client_state.token:
+        delete_vpn_connection()
+        
     # Stop Tailscale network
     tailscale_down()
     send_message_to_front("ts-disconnected 👌 Tailscale disconnected")

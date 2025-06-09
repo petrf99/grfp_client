@@ -48,6 +48,8 @@ def test_local_close_sess_post_exception(mock_logger, mock_post, mock_send_msg):
 @patch("client.back.task_manager.exits.logger")
 @patch("client.back.task_manager.exits.tailscale_down")
 def test_disconnect_keys_deleted(mock_ts_down, mock_logger, mock_send_msg):
+    client_state.session_id = None  # чтобы local_close_sess не вызывался
+    client_state.token = "fake-token"  # чтобы дошло до tailscale_down и os.remove
     with patch("os.path.exists", return_value=True), \
          patch("os.remove") as mock_remove:
         result = disconnect()
