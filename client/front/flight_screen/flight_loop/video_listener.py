@@ -4,6 +4,7 @@ import time
 import threading
 import subprocess
 import json
+import cv2
 
 from client.front.config import (
     NO_FRAME_MAX, CLIENT_VID_RECV_PORT
@@ -63,7 +64,7 @@ def get_video_cap():
         "-analyzeduration", "1000000",
         "-i", f"udp://@:{CLIENT_VID_RECV_PORT}?fifo_size=1000000&overrun_nonfatal=1",
         "-f", "rawvideo",
-        "-pix_fmt", "rgb24",
+        "-pix_fmt", "yuv420p",
         "-"
     ]
     logger.info(f"Start listen video on port {CLIENT_VID_RECV_PORT}")
@@ -80,7 +81,7 @@ def get_video():
 
     # Determine video resolution and frame size
     width, height = get_video_resolution()
-    frame_size = width * height * 3
+    frame_size = width * height * 3 // 2
 
     # Resize GUI window according to video resolution
     front_state.flight_screen.set_video_size((width, height))
@@ -107,7 +108,13 @@ def get_video():
                 time.sleep(0.01)
                 continue
 
-            frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
+            # Собираем сырое YUV420P в плоский массив
+            mv = memoryview(raw_frame)
+            yuv = np.frombuffer(mv, dtype=np.uint8).reshape((height * 3 // 2, width))
+
+            # Конвертируем одной командой
+            frame = cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB_I420)
+
             if frame is not None and frame.size != 0:
                 no_frame_counter = 0
                 front_state.flight_screen.set_video_frame(frame)
