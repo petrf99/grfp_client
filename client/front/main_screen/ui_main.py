@@ -66,6 +66,12 @@ class Ui_MainWidget(object):
 
         self.controllerLayout.addWidget(self.comboBoxControllers)
 
+        self.pushButtonRefreshControllers = QPushButton(MainWidget)
+        self.pushButtonRefreshControllers.setObjectName(u"pushButtonRefreshControllers")
+        self.pushButtonRefreshControllers.setMaximumWidth(80)
+
+        self.controllerLayout.addWidget(self.pushButtonRefreshControllers)
+
 
         self.controllerSetupRow.addLayout(self.controllerLayout)
 
@@ -83,15 +89,55 @@ class Ui_MainWidget(object):
         self.sliderSensitivity = QSlider(MainWidget)
         self.sliderSensitivity.setObjectName(u"sliderSensitivity")
         self.sliderSensitivity.setOrientation(Qt.Horizontal)
-        self.sliderSensitivity.setMinimumWidth(120)
-        self.sliderSensitivity.setMaximumWidth(120)
         self.sliderSensitivity.setMinimum(1)
         self.sliderSensitivity.setMaximum(100)
+        self.sliderSensitivity.setMinimumWidth(120)
+        self.sliderSensitivity.setMaximumWidth(120)
 
         self.sensitivityGroupLayout.addWidget(self.sliderSensitivity)
 
 
         self.controllerSetupRow.addLayout(self.sensitivityGroupLayout)
+
+        self.expoGroupLayout = QHBoxLayout()
+        self.expoGroupLayout.setObjectName(u"expoGroupLayout")
+        self.labelExpo = QLabel(MainWidget)
+        self.labelExpo.setObjectName(u"labelExpo")
+
+        self.expoGroupLayout.addWidget(self.labelExpo)
+
+        self.sliderExpo = QSlider(MainWidget)
+        self.sliderExpo.setObjectName(u"sliderExpo")
+        self.sliderExpo.setOrientation(Qt.Horizontal)
+        self.sliderExpo.setMinimum(0)
+        self.sliderExpo.setMaximum(100)
+        self.sliderExpo.setMinimumWidth(120)
+        self.sliderExpo.setMaximumWidth(120)
+
+        self.expoGroupLayout.addWidget(self.sliderExpo)
+
+
+        self.controllerSetupRow.addLayout(self.expoGroupLayout)
+
+        self.deadzoneGroupLayout = QHBoxLayout()
+        self.deadzoneGroupLayout.setObjectName(u"deadzoneGroupLayout")
+        self.labelDeadzone = QLabel(MainWidget)
+        self.labelDeadzone.setObjectName(u"labelDeadzone")
+
+        self.deadzoneGroupLayout.addWidget(self.labelDeadzone)
+
+        self.sliderDeadzone = QSlider(MainWidget)
+        self.sliderDeadzone.setObjectName(u"sliderDeadzone")
+        self.sliderDeadzone.setOrientation(Qt.Horizontal)
+        self.sliderDeadzone.setMinimum(0)
+        self.sliderDeadzone.setMaximum(100)
+        self.sliderDeadzone.setMinimumWidth(120)
+        self.sliderDeadzone.setMaximumWidth(120)
+
+        self.deadzoneGroupLayout.addWidget(self.sliderDeadzone)
+
+
+        self.controllerSetupRow.addLayout(self.deadzoneGroupLayout)
 
         self.horizontalSpacer2 = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
@@ -123,7 +169,10 @@ class Ui_MainWidget(object):
         self.pushButtonLaunch.setText(QCoreApplication.translate("MainWidget", u"Launch Session", None))
         self.pushButtonAbort.setText(QCoreApplication.translate("MainWidget", u"Abort Session", None))
         self.labelController.setText(QCoreApplication.translate("MainWidget", u"Controller:", None))
+        self.pushButtonRefreshControllers.setText(QCoreApplication.translate("MainWidget", u"Refresh", None))
         self.labelSensitivity.setText(QCoreApplication.translate("MainWidget", u"Sensitivity:", None))
+        self.labelExpo.setText(QCoreApplication.translate("MainWidget", u"Expo:", None))
+        self.labelDeadzone.setText(QCoreApplication.translate("MainWidget", u"Deadzone:", None))
         self.pushButtonSaveControllerDefaults.setText(QCoreApplication.translate("MainWidget", u"Save as default", None))
         self.textEditLog.setPlaceholderText(QCoreApplication.translate("MainWidget", u"System messages will appear here\u2026", None))
     # retranslateUi

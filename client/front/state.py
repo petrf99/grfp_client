@@ -25,18 +25,23 @@ class FrontState:
         self.flight_screen = None
 
         self.controller = None
-        self.sensitivity = 1
         self.rc_input = None
+        # Controller params
+        self.sensitivity = 1
+        self.deadzone = 0
+        self.expo = 0.0
         self._load_controller_config()
         self.set_controller()
 
     def set_controller(self, controller = None):
-        if controller and controller in CONTROLLERS_LIST:
+        from client.front.inputs import DeviceManager
+        if controller and controller in DeviceManager.short_names() + BASE_CONTROLLERS_LIST:
             self.controller = controller
         elif controller:
             logger.error("Invalid controller in set_controller")
             return False
-        self.rc_input = None if self.controller in BACKEND_CONTROLLER else get_rc_input(self.controller)
+        params = {"sensitivity": self.sensitivity, "expo": self.expo, "deadzone": self.deadzone}
+        self.rc_input = None if self.controller in BACKEND_CONTROLLER else get_rc_input(self.controller, params)
         return True
 
     def _load_controller_config(self):
@@ -48,9 +53,11 @@ class FrontState:
                 try:
                     config = json.load(f)
                     controller_name = config.get("controller")
-                    if controller_name in CONTROLLERS_LIST:
+                    if controller_name in BASE_CONTROLLERS_LIST:
                         self.controller = controller_name
                     self.sensitivity = float(config.get("sensitivity", self.sensitivity))
+                    self.expo = float(config.get("expo", self.expo))
+                    self.deadzone = config.get("deadzone", self.deadzone)
                 except (json.JSONDecodeError, ValueError):
                     logger.warning("⚠️ Failed to load controller settings: Incorrect JSON. Use defaults.")
         else:
@@ -61,7 +68,9 @@ class FrontState:
             self.controller = DEFAULT_CONTROLLER
             config = {
                 "controller": self.controller,
-                "sensitivity": self.sensitivity
+                "sensitivity": self.sensitivity,
+                "expo": self.expo,
+                "deadzone": self.deadzone
             }
             with open(CONTROLLER_PATH, "w") as f:
                 json.dump(config, f, indent=2)

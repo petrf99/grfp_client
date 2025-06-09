@@ -33,14 +33,6 @@ RC_CHANNELS_DEFAULTS = {
     "ch16": 1000,
 }
 
-# Controllers list
-CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'drone_radio']
-
-# Keyboard params
-STEP_ANALOG = 20      # шаг изменения каналов
-LIMIT_MIN = 1000
-LIMIT_MAX = 2000
-
 # Main loop
 FREQUENCY = 25
 
@@ -60,6 +52,11 @@ HELP_FILE_PATH="client/settings/help.txt"
 CONTROLLER_PATH="client/settings/controller.json"
 
 # Controllers list
-CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard', 'gamepad', 'rc_controller']
+BASE_CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard']
 BACKEND_CONTROLLER = []
 DEFAULT_CONTROLLER = 'keyboard'
+
+# RC input params
+STEP_ANALOG = 20      # step of channels change
+LIMIT_MIN = 1000
+LIMIT_MAX = 2000

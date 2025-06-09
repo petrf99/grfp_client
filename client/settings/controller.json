@@ -1,4 +1,6 @@
 {
   "controller": "keyboard",
-  "sensitivity": 0.86
+  "sensitivity": 1.02,
+  "expo": 0.0,
+  "deadzone": 0.0
 }

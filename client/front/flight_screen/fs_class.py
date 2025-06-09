@@ -101,7 +101,7 @@ class FlightScreen(QWidget):
             self.ui.labelVideoFrame.setPixmap(scaled_pixmap)
 
         # Upd and send RC data
-        self.rc_state = front_state.rc_input.read_frame(self.rc_state, front_state.sensitivity)
+        self.rc_state = front_state.rc_input.read_frame(self.rc_state)
         send_rc_frame(front_state.session_id, self.rc_state, front_state.controller)
 
         # 📡 Draw telemetry HUD

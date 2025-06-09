@@ -6,8 +6,9 @@ from datetime import datetime
 import time
 import json
 from tech_utils.safe_post_req import post_request
-from client.front.config import BACK_SERV_PORT, RFD_MM_URL, CONTROLLERS_LIST, CONTROLLER_PATH
+from client.front.config import BACK_SERV_PORT, RFD_MM_URL, BASE_CONTROLLERS_LIST, CONTROLLER_PATH
 from client.front.state import front_state
+from client.front.inputs import DeviceManager
 
 from tech_utils.logger import init_logger
 logger = init_logger("FrontMainScreen")
@@ -27,14 +28,13 @@ class MainScreen(QWidget):
         self.ui = Ui_MainWidget()
         self.ui.setupUi(self)
 
-        self.ui.comboBoxControllers.addItems(CONTROLLERS_LIST)
         self.ui.comboBoxControllers.currentTextChanged.connect(self.on_controller_selected)
+        self.refresh_device_list()
         self.ui.sliderSensitivity.valueChanged.connect(self.on_sensitivity_changed)
+        self.ui.sliderExpo.valueChanged.connect(self.on_expo_changed)
+        self.ui.sliderDeadzone.valueChanged.connect(self.on_deadzone_changed)
         self.ui.pushButtonSaveControllerDefaults.clicked.connect(self.save_def_contr_set)
-        index = self.ui.comboBoxControllers.findText(front_state.controller)
-        if index >= 0:
-            self.ui.comboBoxControllers.setCurrentIndex(index)
-        self.ui.sliderSensitivity.setValue(front_state.sensitivity*50)
+        self.ui.pushButtonRefreshControllers.clicked.connect(self.refresh_device_list)
 
         self.stack = stack
 
@@ -47,6 +47,10 @@ class MainScreen(QWidget):
     
     def showEvent(self, event):
         super().showEvent(event)
+
+        self.ui.sliderDeadzone.setValue(front_state.deadzone*100*5)
+        self.ui.sliderSensitivity.setValue(front_state.sensitivity*50)
+        self.ui.sliderExpo.setValue(front_state.expo*100)
 
         mission_list = get_missions()
         if mission_list != self.mission_list:
@@ -84,16 +88,37 @@ class MainScreen(QWidget):
             self.append_log(f"Can't select controller {controller} - invalid value")
 
     def on_sensitivity_changed(self, value):
-        front_state.sensitivity = value / 50.
+        front_state.sensitivity = value / 50. # From 0.0 to 1.0
+
+    def on_expo_changed(self, value):
+        front_state.expo = value / 100. # From 0.0 to 1.0
+
+    def on_deadzone_changed(self, value):
+        front_state.deadzone = round(value / 100. / 5., 4) # From 0.0 to 0.2
+
+    def refresh_device_list(self):
+        DeviceManager.refresh()
+        self.ui.comboBoxControllers.blockSignals(True)
+        self.ui.comboBoxControllers.clear()
+        self.ui.comboBoxControllers.addItems(DeviceManager.short_names() + BASE_CONTROLLERS_LIST)
+
+        index = self.ui.comboBoxControllers.findText(front_state.controller)
+        if index >= 0:
+            self.ui.comboBoxControllers.setCurrentIndex(index)
+
+        self.ui.comboBoxControllers.blockSignals(False)
+
 
     def save_def_contr_set(self):
         config = {
                 "controller": front_state.controller,
-                "sensitivity": front_state.sensitivity
+                "sensitivity": front_state.sensitivity,
+                "expo": front_state.expo,
+                "deadzone": front_state.deadzone
             }
         with open(CONTROLLER_PATH, "w") as f:
             json.dump(config, f, indent=2)
-        self.append_log(f"Controller {front_state.controller} and sensitivity value {front_state.sensitivity} have been set as defaults.")
+        self.append_log(f"Controller {front_state.controller}, sensitivity: {front_state.sensitivity}, expo: {front_state.expo}, deadzone: {front_state.deadzone} have been set as defaults.")
 
     def append_log(self, message: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
