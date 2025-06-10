@@ -89,12 +89,18 @@ class MainScreen(QWidget):
 
     def on_sensitivity_changed(self, value):
         front_state.sensitivity = value / 50. # From 0.0 to 1.0
+        front_state.set_controller()
+        #self.append_log(f"Sensitivity {front_state.sensitivity} selected")
 
     def on_expo_changed(self, value):
         front_state.expo = value / 100. # From 0.0 to 1.0
+        front_state.set_controller()
+        #self.append_log(f"Expo {front_state.expo} selected")
 
     def on_deadzone_changed(self, value):
         front_state.deadzone = round(value / 100. / 5., 4) # From 0.0 to 0.2
+        front_state.set_controller()
+        #self.append_log(f"Deadzone {front_state.deadzone} selected")
 
     def refresh_device_list(self):
         DeviceManager.refresh()
