@@ -6,12 +6,14 @@ from datetime import datetime
 import time
 import json
 from tech_utils.safe_post_req import post_request
-from client.front.config import BACK_SERV_PORT, RFD_MM_URL, BASE_CONTROLLERS_LIST, CONTROLLER_PATH
+from client.front.config import BACK_SERV_PORT, RFD_DOMAIN_NAME, RFD_MM, BASE_CONTROLLERS_LIST, CONTROLLER_PATH
 from client.front.state import front_state
 from client.front.inputs import DeviceManager
 
 from tech_utils.logger import init_logger
 logger = init_logger("FrontMainScreen")
+
+RFD_MM_URL = f"https://{RFD_DOMAIN_NAME}/{RFD_MM}"
 
 def get_missions():
     res = post_request(url=RFD_MM_URL + '/get-missions-list', 

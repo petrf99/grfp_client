@@ -8,7 +8,7 @@ from tech_utils.safe_post_req import post_request
 from tech_utils.tailscale import tailscale_up
 
 from client.back.config import (
-    RFD_IP, RFD_SM_PORT, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
+    RFD_DOMAIN_NAME, RFD_CM, RSA_PRIVATE_PEM_PATH, RSA_PUBLIC_PEM_PATH
 )
 from client.back.state import client_state
 from client.back.front_communication.front_msg_sender import send_message_to_front
@@ -16,7 +16,7 @@ from client.back.front_communication.front_msg_sender import send_message_to_fro
 logger = init_logger("Client_Tailscale_Connect")
 
 # === Constants ===
-RFD_URL = f"http://{RFD_IP}:{RFD_SM_PORT}"
+RFD_URL = f"https://{RFD_DOMAIN_NAME}/{RFD_CM}"
 RFD_CONNECT_URL = f"{RFD_URL}/get-vpn-connection"
 RFD_DELETE_CONN_URL = f"{RFD_URL}/delete-vpn-connection"
 

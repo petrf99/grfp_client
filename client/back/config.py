@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # === RFD connection params ===
-RFD_IP = os.getenv("RFD_IP")       # адрес сервера RFD
-RFD_SM_PORT = int(os.getenv("RFD_SM_PORT"))           
+RFD_DOMAIN_NAME = ('test.' if os.getenv("MODE") == 'test' else '') + os.getenv("RFD_DOMAIN_NAME")       # адрес сервера RFD
+RFD_CM = os.getenv("RFD_CM")
+RFD_MM = os.getenv("RFD_MM")      
 
 RSA_PRIVATE_PEM_PATH="client_private_rsa_key.pem"
 RSA_PUBLIC_PEM_PATH="client_public_rsa_key.pem"

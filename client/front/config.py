@@ -11,7 +11,8 @@ GCS_RC_RECV_PORT=int(os.getenv("GCS_RC_RECV_PORT"))
 UDP_SEND_LOG_DELAY = 3
 
 # === RFD Missions manager params ===
-RFD_MM_URL='http://188.245.79.193:8000'
+RFD_DOMAIN_NAME = ('test.' if os.getenv("MODE") == 'test' else '') + os.getenv("RFD_DOMAIN_NAME")       # адрес сервера RFD
+RFD_MM = os.getenv("RFD_MM")  
 
 # === Константы каналов ===
 RC_CHANNELS_DEFAULTS = {
