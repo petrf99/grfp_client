@@ -69,11 +69,11 @@ class LoginScreen(QWidget):
         email = self.ui.lineEditUsername.text().strip()
         password = self.ui.lineEditPassword.text().strip()
         if re.match(r"[^@]+@[^@]+\.[^@]+", email) and password:
-            res = post_request(url=RFD_AUTH_URL + '/login', payload={"email": email, "password": password}, description="Login to RFP", retries=1)
+            res = post_request(url=RFD_AUTH_URL + '/login', payload={"email": email, "password": password}, description="Login to RFP")
             if res:
                 jwt = decode_jwt_payload(res.get("jwt"))
                 if jwt:
-                    front_state.user_id = jwt.get("user_id")
+                    front_state.email = jwt.get("email")
                     front_state.jwt = res.get("jwt")
                     if self.ui.checkBoxSavePassword.isChecked():
                         with open(LOGIN_CREDS_PATH, "w") as f:

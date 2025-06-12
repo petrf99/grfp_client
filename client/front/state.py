@@ -16,7 +16,7 @@ class FrontState:
         self.tailscale_disconnect_event = threading.Event()
         self.poll_back_event = threading.Event()
 
-        self.user_id = None
+        self.email = None
         self.jwt = None
         
         self.running_event = threading.Event()

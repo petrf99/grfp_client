@@ -17,9 +17,9 @@ RFD_MM_URL = f"https://{RFD_DOMAIN_NAME}/{RFD_MM}"
 
 def get_missions():
     res = post_request(url=RFD_MM_URL + '/get-missions-list', 
-                       payload={"user_id": front_state.user_id}, description=f"Get missions list for user {front_state.user_id}", retries=1, jwt=front_state.jwt)
+                       payload={"email": front_state.email}, description=f"Get missions list for user {front_state.email}", jwt=front_state.jwt)
     if not res:
-        logger.error(f"Can't get missions list for user {front_state.user_id}")
+        logger.error(f"Can't get missions list for user {front_state.email}")
     else:
         return res['data']
 
