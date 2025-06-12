@@ -17,6 +17,7 @@ class FrontState:
         self.poll_back_event = threading.Event()
 
         self.user_id = None
+        self.jwt = None
         
         self.running_event = threading.Event()
 

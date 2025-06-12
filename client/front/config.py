@@ -51,6 +51,8 @@ BACK_POLLING_INTERVAL=0.5
 
 HELP_FILE_PATH="client/settings/help.txt"
 CONTROLLER_PATH="client/settings/controller.json"
+LOGIN_CREDS_PATH="client/settings/login_creds.json"
+LOGIN_CREDS_EXPIRE_TMP=3600*24 # 1 day
 
 # Controllers list
 BASE_CONTROLLERS_LIST = ['keyboard', 'mouse_keyboard']
