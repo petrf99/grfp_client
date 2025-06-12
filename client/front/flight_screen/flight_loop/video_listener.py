@@ -11,6 +11,7 @@ from client.front.config import (
 )
 from tech_utils.udp_listener import RingBuffer
 from tech_utils.safe_subp_run import safe_subp_run
+from tech_utils.ffmpeg_accel import run_ffmpeg_decoder_with_hwaccel
 
 from tech_utils.logger import init_logger
 logger = init_logger("Front_VID_Listener")
@@ -69,7 +70,7 @@ def get_video_cap():
     ]
     logger.info(f"Start listen video on port {CLIENT_VID_RECV_PORT}")
 
-    return subprocess.Popen(ffmpeg_recv_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+    return run_ffmpeg_decoder_with_hwaccel(ffmpeg_recv_cmd)
 
 
 # Main function
@@ -105,7 +106,7 @@ def get_video():
             # 🎥 Read video frame
             raw_frame = frame_buffer.get()
             if raw_frame is None or len(raw_frame) != frame_size:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 continue
 
             # Собираем сырое YUV420P в плоский массив
