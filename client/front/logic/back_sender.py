@@ -5,7 +5,7 @@ from client.front.config import UDP_SEND_LOG_DELAY, BACK_UDP_PORT
 from tech_utils.udp import get_socket
 from tech_utils.logger import init_logger
 
-logger = init_logger("Front_BCK_Sender")
+logger = init_logger(name="Back_Sender", component="front")
 
 # Create UDP socket
 sock = get_socket()

@@ -7,7 +7,7 @@ from client.back.state import client_state
 from client.back.config import BACK_SERV_PORT
 import time
 
-logger = init_logger("Back_Main")
+logger = init_logger(name="Main", component="back")
 
 def main():
     """

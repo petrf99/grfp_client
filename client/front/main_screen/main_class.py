@@ -11,7 +11,7 @@ from client.front.state import front_state
 from client.front.inputs import DeviceManager
 
 from tech_utils.logger import init_logger
-logger = init_logger("FrontMainScreen")
+logger = init_logger(name="MainScreen", component="front")
 
 RFD_MM_URL = f"https://{RFD_DOMAIN_NAME}/{RFD_MM}"
 

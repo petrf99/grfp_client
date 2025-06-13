@@ -4,7 +4,7 @@ from tech_utils.udp_listener import UDPListener
 from client.front.config import CLIENT_TLMT_RECV_PORT, FREQUENCY
 
 from tech_utils.logger import init_logger
-logger = init_logger("Front_TLMT_Listener")
+logger = init_logger(name="TLMT_Listener", component="front")
 
 # 📡 Global telemetry data storage
 telemetry_data = {}

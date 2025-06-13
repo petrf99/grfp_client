@@ -6,7 +6,7 @@ from client.front.inputs import get_rc_input
 import threading
 
 from tech_utils.logger import init_logger
-logger = init_logger("FrontState")
+logger = init_logger(name="State", component="front")
 
 class FrontState:
     def __init__(self):

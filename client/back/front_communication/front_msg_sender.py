@@ -1,5 +1,5 @@
 from tech_utils.logger import init_logger
-logger = init_logger("Back_Msg2FrontSender")
+logger = init_logger(name="Msg2FrontSender", component="back")
 
 message_queue = []
 

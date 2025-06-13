@@ -9,7 +9,7 @@ from client.back.state import client_state
 from client.back.front_communication.front_msg_sender import send_message_to_front
 
 from tech_utils.logger import init_logger
-logger = init_logger("Back_BasicCmds")
+logger = init_logger(name="Exits", component="back")
 
 # Gracefully close a session, notify GCS, clean up state
 def local_close_sess(finish_flg=False):

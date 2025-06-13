@@ -14,7 +14,7 @@ from tech_utils.safe_subp_run import safe_subp_run
 from tech_utils.ffmpeg_accel import run_ffmpeg_decoder_with_hwaccel
 
 from tech_utils.logger import init_logger
-logger = init_logger("Front_VID_Listener")
+logger = init_logger(name="VID_Listener", component="front")
 
 def ffmpeg_reader(cap, frame_size, frame_buffer: RingBuffer, running_event):
     while running_event.is_set():

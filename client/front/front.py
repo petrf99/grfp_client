@@ -10,7 +10,7 @@ from client.front.logic.back_listener import back_polling
 from tech_utils.safe_post_req import post_request
 from tech_utils.logger import init_logger
 
-logger = init_logger("Front_Main")
+logger = init_logger(name="Main", component="front")
 
 def main():
     logger.info("Starting frontend")

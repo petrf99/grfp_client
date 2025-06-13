@@ -7,7 +7,7 @@ from client.back.gcs_communication.udp_rc_input_sender import stream_rc_to_gcs
 import threading
 
 from tech_utils.logger import init_logger
-logger = init_logger("Back_SessStarter")
+logger = init_logger(name="SessStarter", component="back")
 
 # Starts a remote session with the GCS
 def start_session():

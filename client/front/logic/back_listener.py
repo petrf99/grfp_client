@@ -6,7 +6,7 @@ from client.front.config import BACK_SERV_PORT, BACK_POLLING_INTERVAL
 from tech_utils.safe_post_req import post_request
 from tech_utils.logger import init_logger
 
-logger = init_logger("Front_BCK_Listener")
+logger = init_logger(name="Back_Listener", component="front")
 BASE_URL = f"http://127.0.0.1:{BACK_SERV_PORT}"
 
 

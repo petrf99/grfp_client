@@ -3,7 +3,7 @@ import time
 import socket
 
 from tech_utils.logger import init_logger
-logger = init_logger("Back_RC_Streamer")
+logger = init_logger(name="RC_Streamer", component="back")
 
 from client.back.config import BACKEND_CONTROLLER, BACK_UDP_PORT, RC_CHANNELS_DEFAULTS, UDP_SEND_LOG_DELAY
 from tech_utils.udp_listener import UDPListener

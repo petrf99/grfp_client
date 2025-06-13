@@ -13,7 +13,7 @@ from client.back.config import (
 from client.back.state import client_state
 from client.back.front_communication.front_msg_sender import send_message_to_front
 
-logger = init_logger("Client_Tailscale_Connect")
+logger = init_logger(name="Tailscale_Connect", component="back")
 
 # === Constants ===
 RFD_URL = f"https://{RFD_DOMAIN_NAME}/{RFD_CM}"

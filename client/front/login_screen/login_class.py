@@ -9,7 +9,7 @@ from client.front.state import front_state
 from client.front.config import RFD_DOMAIN_NAME, LOGIN_CREDS_PATH, LOGIN_CREDS_EXPIRE_TMP
 from tech_utils.safe_post_req import post_request
 from tech_utils.logger import init_logger
-logger = init_logger("FrontLoginScreen")
+logger = init_logger(name="LoginScreen", component="front")
 
 RFD_AUTH_URL = f"https://{RFD_DOMAIN_NAME}/auth"
 

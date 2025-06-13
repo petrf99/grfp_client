@@ -12,7 +12,7 @@ from client.back.task_manager.exits import disconnect, local_close_sess
 from client.back.task_manager.start_sess import start_session
 
 from tech_utils.logger import init_logger
-logger = init_logger("Back_LocServ")
+logger = init_logger(name="LocServ", component="back")
 
 
 # === Flask App Initialization ===

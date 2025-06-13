@@ -15,7 +15,7 @@ server = None  # server reference for controlled shutdown
 from werkzeug.serving import make_server
 
 from tech_utils.logger import init_logger
-logger = init_logger("Client_GCS_Connect")
+logger = init_logger(name="TCP_Communication", component="back")
 
 # Starts the local Flask TCP server on the client
 def run_client_server():
