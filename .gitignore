@@ -1,6 +1,7 @@
 venv/
 /.env
 logs/
+*.log
 *cache*/
 /.DS_Store
 *token*.txt
